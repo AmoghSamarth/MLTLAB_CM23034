@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<title>Text Sentiment Analysis</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+font-family:'Poppins',sans-serif;
+background:linear-gradient(135deg,#dbeafe,#eff6ff);
+margin:0;
+padding:40px;
+text-align:center;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+background:white;
+padding:40px;
+border-radius:14px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+h1{
+margin-bottom:5px;
+color:#1e3a8a;
+}
+
+.subtitle{
+color:#475569;
+margin-bottom:30px;
+}
+
+button{
+background:#2563eb;
+border:none;
+color:white;
+padding:12px 22px;
+margin:10px;
+border-radius:8px;
+cursor:pointer;
+font-size:15px;
+transition:0.3s;
+}
+
+button:hover{
+background:#1d4ed8;
+}
+
+textarea{
+width:100%;
+height:80px;
+padding:12px;
+border-radius:8px;
+border:1px solid #cbd5f5;
+font-size:15px;
+}
+
+.status{
+margin-top:15px;
+font-weight:600;
+color:#1e40af;
+}
+
+.resultBox{
+display:flex;
+gap:20px;
+margin-top:30px;
+}
+
+.card{
+flex:1;
+background:#f1f5ff;
+padding:20px;
+border-radius:12px;
+}
+
+.modelTitle{
+font-weight:600;
+margin-bottom:10px;
+color:#1e3a8a;
+}
+
+.conf{
+font-size:18px;
+margin-top:10px;
+}
+
+canvas{
+margin-top:30px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Text Sentiment Analysis</h1>
+<div class="subtitle">Ayush Badwaik — CM23051</div>
+
+<input type="file" id="csvFile">
+
+<br>
+
+<button onclick="loadCSV()">Upload CSV</button>
+<button onclick="trainModels()">Train Model</button>
+
+<div id="status" class="status">Waiting for dataset...</div>
+
+<br><br>
+
+<textarea id="sentence" placeholder="Enter sentence for sentiment analysis"></textarea>
+
+<br>
+
+<button onclick="predict()">Analyze</button>
+
+<div class="resultBox">
+
+<div class="card">
+<div class="modelTitle">RNN Model</div>
+<div id="rnnResult">-</div>
+<div class="conf" id="rnnConf"></div>
+</div>
+
+<div class="card">
+<div class="modelTitle">Dense Model</div>
+<div id="denseResult">-</div>
+<div class="conf" id="denseConf"></div>
+</div>
+
+</div>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+<script>
+
+let texts=[]
+let labels=[]
+let tokenizer={}
+let wordIndex=1
+
+let rnnModel
+let denseModel
+
+// LOAD CSV
+
+function loadCSV(){
+
+const file=document.getElementById("csvFile").files[0]
+
+texts=[]
+labels=[]
+tokenizer={}
+wordIndex=1
+
+Papa.parse(file,{
+header:true,
+skipEmptyLines:true,
+complete:function(results){
+
+results.data.forEach(row=>{
+
+if(row.text && row.label!==undefined){
+
+texts.push(row.text.trim())
+labels.push(Number(row.label))
+
+}
+
+})
+
+buildTokenizer()
+
+document.getElementById("status").innerHTML=
+"Dataset Loaded ("+texts.length+" samples)"
+
+}
+})
+
+}
+
+// TOKENIZER
+
+function buildTokenizer(){
+
+texts.forEach(sentence=>{
+
+sentence.split(/\s+/).forEach(word=>{
+
+word=word.toLowerCase()
+
+if(!tokenizer[word]){
+tokenizer[word]=wordIndex++
+}
+
+})
+
+})
+
+}
+
+// ENCODE
+
+function encode(sentence){
+
+return sentence
+.toLowerCase()
+.split(/\s+/)
+.map(w=>tokenizer[w] || 0)
+
+}
+
+// PAD
+
+function pad(seq){
+
+const max=10
+
+while(seq.length<max)
+seq.push(0)
+
+return seq.slice(0,max)
+
+}
+
+// TRAIN MODELS
+
+async function trainModels(){
+
+document.getElementById("status").innerHTML="Training models... please wait"
+
+const xs=tf.tensor2d(texts.map(t=>pad(encode(t))))
+const ys=tf.tensor2d(labels,[labels.length,1])
+
+// RNN
+
+rnnModel=tf.sequential()
+
+rnnModel.add(tf.layers.embedding({
+inputDim:2000,
+outputDim:16,
+inputLength:10
+}))
+
+rnnModel.add(tf.layers.simpleRNN({units:12}))
+
+rnnModel.add(tf.layers.dense({
+units:1,
+activation:'sigmoid'
+}))
+
+rnnModel.compile({
+optimizer:'adam',
+loss:'binaryCrossentropy',
+metrics:['accuracy']
+})
+
+// Dense
+
+denseModel=tf.sequential()
+
+denseModel.add(tf.layers.embedding({
+inputDim:2000,
+outputDim:16,
+inputLength:10
+}))
+
+denseModel.add(tf.layers.flatten())
+
+denseModel.add(tf.layers.dense({
+units:1,
+activation:'sigmoid'
+}))
+
+denseModel.compile({
+optimizer:'adam',
+loss:'binaryCrossentropy'
+})
+
+await rnnModel.fit(xs,ys,{
+epochs:10,
+batchSize:8
+})
+
+await denseModel.fit(xs,ys,{
+epochs:10,
+batchSize:8
+})
+
+document.getElementById("status").innerHTML=
+"✔ Model trained successfully"
+
+}
+
+// PREDICT
+
+async function predict(){
+
+if(!rnnModel){
+alert("Train model first")
+return
+}
+
+const text=document.getElementById("sentence").value
+
+const input=tf.tensor2d([pad(encode(text))])
+
+const rnn=await rnnModel.predict(input).data()
+const dense=await denseModel.predict(input).data()
+
+const rnnLabel=rnn[0]>0.5?"Positive":"Negative"
+const denseLabel=dense[0]>0.5?"Positive":"Negative"
+
+document.getElementById("rnnResult").innerHTML=rnnLabel
+document.getElementById("denseResult").innerHTML=denseLabel
+
+document.getElementById("rnnConf").innerHTML=
+"Confidence: "+(rnn[0]*100).toFixed(2)+"%"
+
+document.getElementById("denseConf").innerHTML=
+"Confidence: "+(dense[0]*100).toFixed(2)+"%"
+
+drawChart(rnn[0],dense[0])
+
+}
+
+// GRAPH
+
+function drawChart(rnn,dense){
+
+const ctx=document.getElementById("chart")
+
+new Chart(ctx,{
+type:'bar',
+data:{
+labels:["RNN Model","Dense Model"],
+datasets:[{
+label:"Confidence",
+data:[rnn,dense],
+backgroundColor:["#3b82f6","#60a5fa"]
+}]
+},
+options:{
+scales:{
+y:{
+beginAtZero:true,
+max:1
+}
+}
+}
+})
+
+}
+
+</script>
+
+</body>
+</html>
