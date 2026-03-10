@@ -278,7 +278,7 @@ function buildTokenizer(){
 
 texts.forEach(sentence=>{
 
-sentence.split(/\s+/).forEach(word=>{
+sentence.split(/[\s,.!?]+/).forEach(word=>{
 
 word=word.toLowerCase()
 
@@ -296,7 +296,7 @@ function encode(sentence){
 
 return sentence
 .toLowerCase()
-.split(/\s+/)
+.split(/[\s,.!?]+/)
 .map(w=>tokenizer[w] || 0)
 
 }
@@ -322,7 +322,7 @@ const ys=tf.tensor2d(labels,[labels.length,1])
 rnnModel=tf.sequential()
 
 rnnModel.add(tf.layers.embedding({
-inputDim:2000,
+inputDim:5000,
 outputDim:16,
 inputLength:10
 }))
@@ -343,7 +343,7 @@ metrics:['accuracy']
 denseModel=tf.sequential()
 
 denseModel.add(tf.layers.embedding({
-inputDim:2000,
+inputDim:5000,
 outputDim:16,
 inputLength:10
 }))
@@ -361,12 +361,12 @@ loss:'binaryCrossentropy'
 })
 
 await rnnModel.fit(xs,ys,{
-epochs:10,
+epochs:30,
 batchSize:8
 })
 
 await denseModel.fit(xs,ys,{
-epochs:10,
+epochs:30,
 batchSize:8
 })
 
@@ -392,11 +392,18 @@ const dense=await denseModel.predict(input).data()
 const rnnLabel=rnn[0]>0.5?"Positive":"Negative"
 const denseLabel=dense[0]>0.5?"Positive":"Negative"
 
+const rnnValue = isNaN(rnn[0]) ? 0 : rnn[0];
+const denseValue = isNaN(dense[0]) ? 0 : dense[0];
+
 document.getElementById("rnnResult").innerHTML=rnnLabel
 document.getElementById("denseResult").innerHTML=denseLabel
 
 document.getElementById("rnnConf").innerHTML=
-"Confidence: "+(rnn[0]*100).toFixed(2)+"%"
+document.getElementById("rnnConf").innerHTML =
+"Confidence: "+(rnnValue*100).toFixed(2)+"%";
+
+document.getElementById("denseConf").innerHTML =
+"Confidence: "+(denseValue*100).toFixed(2)+"%";
 
 document.getElementById("denseConf").innerHTML=
 "Confidence: "+(dense[0]*100).toFixed(2)+"%"
