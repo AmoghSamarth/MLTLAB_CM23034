@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AnimalEye — AI Classifier</title>
+
+  <!-- ── Google Fonts ── -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- ── TensorFlow.js (pretrained models — no training needed) ── -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <!-- MobileNet V2 — Top-5 label classification -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
+  <!-- COCO-SSD — Person + multi-object bounding box detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+  <!-- Chart.js — Confidence bar chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- ── Stylesheet ── -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       ANIMATED BACKGROUND BLOBS
+  ═══════════════════════════════════════ -->
+  <div class="blobs">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+  </div>
+
+  <div class="page">
+
+    <!-- ═══════════════════════════════════════
+         HEADER
+    ═══════════════════════════════════════ -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">🦋</div>
+        <div class="brand-text">
+          <h1>AnimalEye</h1>
+          <p>MobileNet V2 + COCO-SSD · Humans &amp; Animals</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- Dark / Light Mode Toggle -->
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+          <div class="toggle-thumb" id="theme-thumb">☀️</div>
+        </button>
+        <!-- Model Status Pill -->
+        <div class="status-pill" id="status-pill">
+          <div class="sdot" id="sdot"></div>
+          <span id="status-txt">Loading models…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════
+         MODEL LOAD BANNER
+    ═══════════════════════════════════════ -->
+    <div id="load-banner">
+      <div class="lspinner" id="lspinner"></div>
+      <div style="flex:1">
+        <h4 id="banner-h">Initializing AI Models</h4>
+        <p id="banner-p">Pretrained · No training needed · WebGL accelerated · Detects humans + 80 object classes</p>
+        <div class="model-bars">
+          <div class="mbar-row mbar-mn">
+            <span class="mbar-label">MobileNet V2</span>
+            <div class="mbar-track"><div class="mbar-fill" id="mn-bar"></div></div>
+            <span class="mbar-pct" id="mn-status">0%</span>
+          </div>
+          <div class="mbar-row mbar-cs">
+            <span class="mbar-label">COCO-SSD</span>
+            <div class="mbar-track"><div class="mbar-fill" id="cs-bar"></div></div>
+            <span class="mbar-pct" id="cs-status">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         NAVIGATION TABS
+    ═══════════════════════════════════════ -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('upload', this)">🖼️ Upload / Drag-Drop</button>
+      <button class="tab-btn"        onclick="switchTab('webcam', this)">📷 Live Webcam</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PANEL 1 — IMAGE UPLOAD & CLASSIFY
+    ═══════════════════════════════════════ -->
+    <div class="panel active" id="panel-upload">
+
+      <!-- Drop Zone -->
+      <div class="drop-zone" id="drop-zone"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)"
+           onclick="document.getElementById('file-input').click()">
+        <span class="drop-emoji">🐾</span>
+        <h3>Drop an image here</h3>
+        <p>Animals · Humans · Objects &nbsp;—&nbsp; JPG · PNG · WEBP · GIF</p>
+        <button class="btn-browse"
+                onclick="event.stopPropagation(); document.getElementById('file-input').click()">
+          Browse Files
+        </button>
+      </div>
+      <!-- Hidden file input -->
+      <input type="file" id="file-input" accept="image/*" onchange="onFileSelect(event)" />
+
+      <!-- Two-column grid: image preview + predictions -->
+      <div class="classify-grid">
+
+        <!-- Left: Image preview + bounding box canvas -->
+        <div class="card preview-card" style="animation-delay:.48s">
+          <div class="no-img" id="no-img">
+            <span>🦁</span>No image loaded yet
+          </div>
+          <!-- img + canvas are overlaid inside img-wrap -->
+          <div class="img-wrap" id="img-wrap" style="display:none">
+            <img id="preview-img" alt="Uploaded preview" />
+            <canvas id="bbox-canvas"></canvas>
+          </div>
+          <!-- Detection badges (e.g. "👤 person · 82%") -->
+          <div class="detect-badges" id="detect-badges"></div>
+          <div class="action-row">
+            <button class="btn-classify" id="classify-btn" onclick="classifyImage()" disabled>
+              <div class="bspinner" id="cls-spinner"></div>
+              <span id="cls-txt">✨ Classify</span>
+            </button>
+            <button class="btn-reset" onclick="resetUpload()">Reset</button>
+          </div>
+        </div>
+
+        <!-- Right: Prediction results -->
+        <div class="card results-card" style="animation-delay:.58s">
+          <div class="card-title">🏆 Top-5 Predictions</div>
+
+          <!-- Shown when COCO-SSD detects a person -->
+          <div class="person-hero" id="person-hero">
+            <div class="ph-badge">👤 Human Detected</div>
+            <h2 id="person-count-text">Person</h2>
+            <p  id="person-sub">Detected by COCO-SSD object detection model</p>
+          </div>
+
+          <!-- Shown for animals / objects -->
+          <div class="best-hero" id="best-hero">
+            <div class="hero-label">Best Match</div>
+            <div class="hero-name" id="hero-name">—</div>
+            <div class="hero-conf" id="hero-conf">—</div>
+          </div>
+
+          <!-- Ranked prediction rows -->
+          <div id="pred-list">
+            <div class="empty-hint"><span>🔭</span>Upload an image to see predictions</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confidence Bar Chart -->
+      <div class="card chart-card" style="animation-delay:.68s">
+        <div class="card-title">📊 Confidence Chart</div>
+        <div class="chart-wrap">
+          <canvas id="upload-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Animal / Human Fact Card (Wikipedia) -->
+      <div id="fact-card">
+        <div class="fact-header">
+          <div class="fact-thumb" id="fact-thumb">🦒</div>
+          <div class="fact-header-text">
+            <h4 id="fact-animal-name">Animal</h4>
+            <span>Wikipedia · Fact</span>
+          </div>
+        </div>
+        <div id="fact-body">
+          <div class="fact-loading">
+            <div class="mini-spin"></div>
+            <span>Fetching fact…</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-upload -->
+
+
+    <!-- ═══════════════════════════════════════
+         PANEL 2 — LIVE WEBCAM
+    ═══════════════════════════════════════ -->
+    <div class="panel" id="panel-webcam">
+      <div class="webcam-grid">
+
+        <!-- Left: Camera feed -->
+        <div class="card cam-card" style="animation-delay:.4s">
+          <div class="cam-card-header">
+            <div class="card-title" style="margin:0">📷 Camera Feed</div>
+            <div class="fps-chip" id="fps-chip"></div>
+          </div>
+
+          <div class="video-wrap">
+            <video id="webcam-video" autoplay muted playsinline></video>
+            <!-- Bounding box overlay (mirrored to match video) -->
+            <canvas id="cam-bbox-canvas"></canvas>
+            <!-- Scanning animation line -->
+            <div class="scan-bar" id="scan-bar"></div>
+            <!-- LIVE badge -->
+            <div class="vid-live" id="vid-live">
+              <div class="ldot"></div>LIVE
+            </div>
+            <!-- Camera placeholder shown before camera starts -->
+            <div class="cam-placeholder" id="cam-placeholder">
+              <span>📷</span>Camera not started
+            </div>
+            <!-- Snapshot button (bottom-right of video) -->
+            <button class="btn-snap-overlay" id="btn-snap"
+                    onclick="takeSnapshot()" title="Take snapshot">📸</button>
+          </div>
+
+          <!-- Hidden 224×224 canvas used to capture frames for MobileNet -->
+          <canvas id="webcam-canvas" width="224" height="224" style="display:none"></canvas>
+
+          <div class="cam-btns">
+            <button class="btn-start-cam" onclick="startWebcam()">▶ Start Camera</button>
+            <button class="btn-stop-cam"  onclick="stopWebcam()">■ Stop</button>
+          </div>
+          <p class="cam-hint">Click 📸 to capture a snapshot and classify it</p>
+        </div>
+
+        <!-- Right: Live prediction results -->
+        <div class="card live-results-card" style="animation-delay:.5s">
+          <div class="card-title">🏆 Real-Time Top-5</div>
+
+          <div class="person-hero" id="cam-person-hero">
+            <div class="ph-badge">👤 Human Detected</div>
+            <h2 id="cam-person-count-text">Person</h2>
+            <p  id="cam-person-sub">Live detection by COCO-SSD</p>
+          </div>
+
+          <div class="best-hero" id="cam-best-hero">
+            <div class="hero-label">Best Match</div>
+            <div class="hero-name" id="cam-hero-name">—</div>
+            <div class="hero-conf" id="cam-hero-conf">—</div>
+          </div>
+
+          <div id="cam-pred-list">
+            <div class="empty-hint"><span>📷</span>Start the webcam to see live results</div>
+          </div>
+
+          <div class="live-chart-section">
+            <div class="card-title" style="font-size:.9rem;margin-bottom:10px">📊 Live Confidence</div>
+            <div class="chart-wrap" style="height:175px">
+              <canvas id="cam-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /panel-webcam -->
+
+  </div><!-- /page -->
+
+
+  <!-- ═══════════════════════════════════════
+       SNAPSHOT MODAL
+  ═══════════════════════════════════════ -->
+  <div class="snap-modal" id="snap-modal">
+    <div class="snap-backdrop" onclick="closeSnapModal()"></div>
+    <div class="snap-modal-card">
+      <div class="snap-modal-title">📸 Snapshot Captured</div>
+      <img id="snap-preview-img" alt="Snapshot preview" />
+      <div class="snap-modal-btns">
+        <button class="btn-snap-close"    onclick="closeSnapModal()">Discard</button>
+        <button class="btn-snap-classify" onclick="classifySnapshot()">✨ Classify This</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <!-- ── App Script ── -->
+  <script src="script.js"></script>
+</body>
+</html>
