@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision Identifier - ML</title>
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="header">
+        <h1>Vision Identifier</h1>
+        <p>Real-time person classification using TensorFlow.js</p>
+    </div>
+
+    <div class="container">
+        <!-- Live Cam Feed -->
+        <div class="card">
+            <div class="video-container">
+                <div id="loading-info">Initializing Camera...</div>
+                <video autoplay playsinline muted id="webcam"></video>
+                <div id="prediction-overlay">
+                    <span id="prediction-text">Waiting for data...</span>
+                </div>
+            </div>
+            <p class="helper-text" style="margin-top: 20px; text-align: center;">
+                Uses your webcam locally. No images are uploaded to the cloud.
+            </p>
+        </div>
+
+        <!-- Training Controls -->
+        <div class="card controls-card">
+            <div class="input-group">
+                <label for="person-name">Person Name</label>
+                <input type="text" id="person-name" placeholder="e.g. John Doe, Alice">
+            </div>
+
+            <button class="btn-primary" id="snap-btn">📸 Snap Picture</button>
+            <p class="helper-text">Snap at least 15-20 pictures from different angles, lighting, and distances for better accuracy.</p>
+
+            <div class="divider"></div>
+
+            <div class="list-container">
+                <h3>Added Profiles</h3>
+                <ul id="persons-list">
+                    <li style="color: var(--text-light)">No one labeled yet.</li>
+                </ul>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="btn-row-1" style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn-secondary" id="save-btn" style="width:100%;">💾 Save Model Data</button>
+            </div>
+            <div class="btn-row-2" style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-outline" id="load-btn" style="flex:1;">📂 Load Model</button>
+                <button class="btn-outline" id="clear-btn" style="flex:1; color:#FA8072;">🗑️ Clear Current</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load tfjs, mobilenet, knn classifier from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
+
+    <script src="app.js"></script>
+</body>
+</html>
