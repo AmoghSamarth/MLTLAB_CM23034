@@ -1,1334 +1,821 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ML Model Deployment — Browser Lab</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #080c14;
-    --surface: #0d1320;
-    --panel: #111827;
-    --border: #1e2d45;
-    --accent: #00e5ff;
-    --accent2: #7c3aed;
-    --accent3: #10b981;
-    --warn: #f59e0b;
-    --danger: #ef4444;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --dim: #334155;
-    --glow: 0 0 20px rgba(0,229,255,0.15);
-    --glow2: 0 0 30px rgba(124,58,237,0.2);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Animated background grid */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    top: -50%;  left: -50%;
-    width: 200%; height: 200%;
-    background: radial-gradient(ellipse at 30% 20%, rgba(124,58,237,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 80%, rgba(0,229,255,0.06) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-    animation: bgPulse 8s ease-in-out infinite alternate;
-  }
-
-  @keyframes bgPulse {
-    from { opacity: 0.6; }
-    to   { opacity: 1; }
-  }
-
-  /* ── HEADER ── */
-  header {
-    position: relative; z-index: 10;
-    padding: 28px 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    background: rgba(8,12,20,0.8);
-    backdrop-filter: blur(12px);
-  }
-
-  .logo {
-    display: flex; align-items: center; gap: 14px;
-  }
-
-  .logo-icon {
-    width: 44px; height: 44px;
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    border-radius: 12px;
-    display: grid; place-items: center;
-    font-size: 20px;
-    box-shadow: var(--glow), var(--glow2);
-  }
-
-  .logo-text {
-    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-
-  .logo-sub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-top: 2px;
-  }
-
-  .header-badge {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 20px; color: var(--muted);
-    background: var(--surface);
-  }
-
-  .status-dot {
-    display: inline-block; width: 7px; height: 7px;
-    background: var(--accent3); border-radius: 50%;
-    margin-right: 7px;
-    box-shadow: 0 0 8px var(--accent3);
-    animation: blink 2s ease-in-out infinite;
-  }
-
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-  /* ── MAIN LAYOUT ── */
-  .container {
-    position: relative; z-index: 10;
-    max-width: 1200px; margin: 0 auto;
-    padding: 48px 24px;
-  }
-
-  .hero-title {
-    text-align: center; margin-bottom: 56px;
-  }
-
-  .hero-title h1 {
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800; line-height: 1.1;
-    letter-spacing: -1.5px;
-    background: linear-gradient(135deg, #fff 30%, var(--accent) 70%, var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin-bottom: 14px;
-  }
-
-  .hero-title p {
-    color: var(--muted); font-size: 16px; font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.5px;
-  }
-
-  /* ── STEP PIPELINE ── */
-  .pipeline {
-    display: flex; align-items: center; justify-content: center;
-    gap: 0; margin-bottom: 48px; flex-wrap: wrap;
-  }
-
-  .step-node {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 8px; cursor: pointer; transition: all 0.3s;
-  }
-
-  .step-circle {
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    background: var(--panel);
-    display: grid; place-items: center;
-    font-size: 20px;
-    transition: all 0.3s;
-    position: relative;
-  }
-
-  .step-node.active .step-circle {
-    border-color: var(--accent);
-    background: rgba(0,229,255,0.08);
-    box-shadow: 0 0 20px rgba(0,229,255,0.3);
-  }
-
-  .step-node.done .step-circle {
-    border-color: var(--accent3);
-    background: rgba(16,185,129,0.08);
-    box-shadow: 0 0 15px rgba(16,185,129,0.2);
-  }
-
-  .step-label {
-    font-size: 11px; font-family: 'JetBrains Mono', monospace;
-    color: var(--muted); letter-spacing: 1px; text-align: center;
-    transition: color 0.3s;
-  }
-
-  .step-node.active .step-label { color: var(--accent); }
-  .step-node.done .step-label { color: var(--accent3); }
-
-  .step-connector {
-    width: 60px; height: 2px;
-    background: var(--border);
-    margin-bottom: 28px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .step-connector.filled::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(90deg, var(--accent3), var(--accent));
-    animation: fillLine 0.5s ease forwards;
-  }
-
-  @keyframes fillLine { from{width:0} to{width:100%} }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
-    margin-bottom: 24px;
-    transition: border-color 0.3s;
-  }
-
-  .card:hover { border-color: var(--dim); }
-
-  .card.highlighted {
-    border-color: rgba(0,229,255,0.3);
-    box-shadow: var(--glow);
-  }
-
-  .card-header {
-    display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
-  }
-
-  .card-icon {
-    width: 40px; height: 40px; border-radius: 10px;
-    display: grid; place-items: center; font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .icon-blue  { background: rgba(0,229,255,0.12);  border: 1px solid rgba(0,229,255,0.2); }
-  .icon-purple{ background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.2); }
-  .icon-green { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.2); }
-  .icon-amber { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.2); }
-
-  .card-title { font-size: 18px; font-weight: 700; }
-  .card-desc  { font-size: 13px; color: var(--muted); margin-top: 3px; }
-
-  /* ── BUTTONS ── */
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 24px; border-radius: 10px;
-    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
-    cursor: pointer; border: none; transition: all 0.25s;
-    letter-spacing: 0.3px;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    color: #fff;
-    box-shadow: 0 4px 20px rgba(124,58,237,0.3);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(124,58,237,0.5);
-  }
-
-  .btn-primary:active { transform: translateY(0); }
-
-  .btn-secondary {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(0,229,255,0.05);
-  }
-
-  .btn-success {
-    background: linear-gradient(135deg, #065f46, var(--accent3));
-    color: #fff;
-    box-shadow: 0 4px 20px rgba(16,185,129,0.25);
-  }
-
-  .btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16,185,129,0.4);
-  }
-
-  .btn:disabled {
-    opacity: 0.4; cursor: not-allowed;
-    transform: none !important; box-shadow: none !important;
-  }
-
-  /* ── MODEL INFO GRID ── */
-  .model-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
-    margin-top: 20px;
-  }
-
-  .model-stat {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px;
-    text-align: center;
-  }
-
-  .model-stat .val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 22px; font-weight: 700;
-    color: var(--accent); display: block; margin-bottom: 4px;
-  }
-
-  .model-stat .lbl {
-    font-size: 11px; color: var(--muted); letter-spacing: 1px;
-  }
-
-  /* ── PROGRESS BAR ── */
-  .progress-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px; overflow: hidden; height: 8px; margin: 16px 0;
-  }
-
-  .progress-fill {
-    height: 100%; width: 0%;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    transition: width 0.3s ease;
-    box-shadow: 0 0 10px var(--accent);
-  }
-
-  /* ── LOG TERMINAL ── */
-  .terminal {
-    background: #05080f;
-    border: 1px solid var(--border);
-    border-radius: 14px; overflow: hidden;
-    font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
-  }
-
-  .terminal-header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .dot { width: 10px; height: 10px; border-radius: 50%; }
-  .dot-r { background: #ff5f57; }
-  .dot-y { background: #ffbd2e; }
-  .dot-g { background: #28c840; }
-
-  .terminal-title {
-    font-size: 11px; color: var(--muted); margin-left: 8px; letter-spacing: 1px;
-  }
-
-  .terminal-body {
-    padding: 16px; max-height: 220px; overflow-y: auto;
-    scrollbar-width: thin; scrollbar-color: var(--dim) transparent;
-  }
-
-  .log-line {
-    padding: 3px 0; line-height: 1.6;
-    animation: fadeIn 0.3s ease;
-  }
-
-  @keyframes fadeIn { from{opacity:0; transform:translateX(-8px)} to{opacity:1; transform:none} }
-
-  .log-info  { color: var(--accent); }
-  .log-success{ color: var(--accent3); }
-  .log-warn  { color: var(--warn); }
-  .log-error { color: var(--danger); }
-  .log-dim   { color: var(--muted); }
-
-  /* ── PREDICTION INPUT ── */
-  .input-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;
-  }
-
-  .input-group label {
-    display: block; font-size: 12px; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace; margin-bottom: 8px;
-    letter-spacing: 1px;
-  }
-
-  .input-group input {
-    width: 100%; padding: 12px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace; font-size: 14px;
-    transition: all 0.2s; outline: none;
-  }
-
-  .input-group input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
-  }
-
-  /* ── RESULT DISPLAY ── */
-  .result-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px; padding: 28px; text-align: center;
-    min-height: 120px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 12px;
-    transition: all 0.4s;
-  }
-
-  .result-box.has-result {
-    border-color: var(--accent3);
-    box-shadow: 0 0 30px rgba(16,185,129,0.12);
-  }
-
-  .result-prediction {
-    font-size: 48px; font-weight: 800;
-    background: linear-gradient(135deg, var(--accent3), var(--accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .result-confidence {
-    font-size: 13px; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .result-label {
-    font-size: 15px; color: var(--text); font-weight: 600;
-  }
-
-  .result-placeholder {
-    color: var(--dim); font-size: 14px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── CONFIDENCE BARS ── */
-  .conf-bars { width: 100%; margin-top: 8px; }
-  .conf-row {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 8px;
-  }
-  .conf-row .lbl {
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    color: var(--muted); width: 60px; text-align: right; flex-shrink: 0;
-  }
-  .conf-bar-wrap {
-    flex: 1; background: var(--surface); border-radius: 4px;
-    overflow: hidden; height: 6px;
-  }
-  .conf-bar-fill {
-    height: 100%; border-radius: 4px;
-    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .conf-row .pct {
-    font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    color: var(--muted); width: 42px; flex-shrink: 0;
-  }
-
-  /* ── TABS ── */
-  .tabs {
-    display: flex; gap: 4px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px; padding: 4px;
-    margin-bottom: 24px; width: fit-content;
-  }
-
-  .tab-btn {
-    padding: 8px 20px; border-radius: 9px;
-    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; border: none; background: transparent;
-    color: var(--muted); transition: all 0.2s;
-  }
-
-  .tab-btn.active {
-    background: var(--panel);
-    color: var(--text);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  }
-
-  /* ── SECTION BADGE ── */
-  .section-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(0,229,255,0.07);
-    border: 1px solid rgba(0,229,255,0.15);
-    border-radius: 20px; padding: 5px 14px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--accent); letter-spacing: 1px;
-    margin-bottom: 16px;
-  }
-
-  /* ── STORAGE CARD ── */
-  .storage-info {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;
-  }
-
-  .storage-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 14px 16px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .storage-item .key {
-    font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px;
-  }
-
-  .storage-item .val {
-    font-size: 13px; color: var(--accent3); word-break: break-all;
-  }
-
-  /* ── CANVAS SECTION ── */
-  .canvas-wrap {
-    display: flex; flex-direction: column; align-items: center; gap: 12px;
-  }
-
-  canvas#drawCanvas {
-    border: 2px solid var(--border);
-    border-radius: 12px; cursor: crosshair;
-    background: #000;
-    touch-action: none;
-    transition: border-color 0.3s;
-  }
-
-  canvas#drawCanvas:hover { border-color: var(--accent); }
-
-  .canvas-tools {
-    display: flex; gap: 10px;
-  }
-
-  /* ── FOOTER ── */
-  .info-footer {
-    margin-top: 56px;
-    padding: 28px 0;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--muted); letter-spacing: 1px;
-  }
-
-  /* Loader spinner */
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: inline-block;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Hidden */
-  .hidden { display: none; }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    header { padding: 20px 20px; }
-    .container { padding: 32px 16px; }
-    .input-grid { grid-template-columns: 1fr; }
-    .storage-info { grid-template-columns: 1fr; }
-    .pipeline { gap: 4px; }
-    .step-connector { width: 30px; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Model Deployment | Practical 7</title>
+    <!-- Google Fonts: OutFit for a premium modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- TensorFlow.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-lighter: #1e293b;
+            --primary: #8b5cf6;
+            --secondary: #3b82f6;
+            --accent: #10b981;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+            --surface: rgba(30, 41, 59, 0.7);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #020617; /* Dark slate */
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Ambient Glow Background */
+        .ambient-glow {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .glow-1 {
+            position: absolute;
+            top: -20%;
+            left: -10%;
+            width: 70vw;
+            height: 70vw;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%);
+            border-radius: 50%;
+            animation: pulse-glow 15s ease-in-out infinite alternate;
+        }
+
+        .glow-2 {
+            position: absolute;
+            bottom: -20%;
+            right: -10%;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0) 70%);
+            border-radius: 50%;
+            animation: pulse-glow 20s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1) translate(0, 0); opacity: 0.8; }
+            50% { transform: scale(1.1) translate(2%, 2%); opacity: 1; }
+            100% { transform: scale(0.9) translate(-2%, -2%); opacity: 0.8; }
+        }
+
+        header {
+            margin-top: 4rem;
+            text-align: center;
+            z-index: 10;
+            padding: 0 2rem;
+            animation: fade-in-down 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #c4b5fd, #93c5fd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            letter-spacing: -1.5px;
+            line-height: 1.2;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 650px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        main {
+            z-index: 10;
+            width: 100%;
+            max-width: 1000px;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            margin-top: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.5); /* Semi-transparent */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            animation: fade-in-up 0.8s ease-out backwards;
+        }
+
+        .glass-panel:nth-child(1) { animation-delay: 0.1s; }
+        .glass-panel:nth-child(2) { animation-delay: 0.2s; }
+
+        .glass-panel:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255,255,255,0.2);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Add a subtle highlight line at the top of panels */
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            opacity: 0.5;
+        }
+
+        .panel-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #f1f5f9;
+        }
+
+        .panel-title i {
+            font-style: normal;
+            font-size: 1.5rem;
+        }
+
+        /* Controls */
+        .controls-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .btn-wrapper {
+            position: relative;
+        }
+
+        /* Step numbers layout */
+        .step-number {
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            background: var(--bg-lighter);
+            border: 2px solid var(--primary);
+            color: var(--text-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            z-index: 2;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        button.btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            padding: 1.2rem 1.5rem 1.2rem 2.5rem; /* extra left padding for step number */
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Button Hover Effects */
+        button.btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        button.btn:hover:not(:disabled)::after {
+            opacity: 1;
+        }
+
+        button.btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.02);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.3);
+        }
+
+        /* Specific Button Types */
+        button.btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            color: white;
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+            padding-left: 1.5rem; /* reset padding */
+        }
+
+        button.btn-primary .step-number {
+             display: none; /* hide floating number for primary actions if needed, or keep it */
+        }
+
+        button.btn-primary.with-number {
+            padding-left: 2.5rem;
+        }
+        button.btn-primary.with-number .step-number {
+            display: flex;
+            border-color: #fff;
+            background: var(--primary);
+        }
+
+        button.btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #9333ea, #2563eb);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 20px 30px -5px rgba(139, 92, 246, 0.5);
+        }
+
+        button.btn-success {
+            background: linear-gradient(135deg, #059669, #10b981);
+            border: none;
+            padding-left: 1.5rem; 
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+
+        button.btn-success:hover:not(:disabled) {
+            background: linear-gradient(135deg, #047857, #059669);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 20px 30px -5px rgba(16, 185, 129, 0.5);
+        }
+
+        button.btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+        button.btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        button .icon-span {
+            font-size: 1.25rem;
+            transition: transform 0.3s;
+        }
+        
+        button.btn:hover:not(:disabled) .icon-span {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        /* Viewer Section */
+        .viewer-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .image-container {
+            width: 100%;
+            aspect-ratio: 16/10;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        #test-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        #test-image:hover {
+            transform: scale(1.05);
+        }
+
+        /* Status & Logs */
+        .status-container {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-light);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444; /* red for unloaded */
+            margin-right: 0.75rem;
+            position: relative;
+            transition: background 0.3s;
+        }
+
+        .status-dot::after {
+            content: '';
+            position: absolute;
+            top: -4px; left: -4px; right: -4px; bottom: -4px;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.4;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .status-dot.active {
+            background: var(--accent); /* green for loaded */
+        }
+        
+        .status-dot.loading {
+            background: #eab308; /* yellow for loading */
+        }
+
+        @keyframes pulse-dot {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .log-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .log-header {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .log-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            height: 200px; /* Taller */
+            overflow-y: auto;
+            color: #34d399; /* Green text for Matrix feel */
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .log-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        .log-box::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        .log-box::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            border-bottom: 1px dotted rgba(255,255,255,0.1);
+            padding-bottom: 0.4rem;
+        }
+        
+        .log-entry .timestamp {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .log-entry.error { color: #ef4444; }
+        .log-entry.success { color: #a78bfa; font-weight: 600; }
+        .log-entry.info { color: #60a5fa; }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        /* Animations */
+        @keyframes fade-in-down {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 850px) {
+            main {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+            h1 { font-size: 2.5rem; }
+        }
+    </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon">🧠</div>
-    <div>
-      <div class="logo-text">TensorFlow.js Lab</div>
-      <div class="logo-sub">ML MODEL DEPLOYMENT — BROWSER EDITION</div>
-    </div>
-  </div>
-  <div class="header-badge">
-    <span class="status-dot"></span>TF.js v4.15 READY
-  </div>
-</header>
-
-<div class="container">
-  <div class="hero-title">
-    <h1>Deploy AI Models in the Browser</h1>
-    <p>// Save model → Reload from storage → Run predictions — no server needed</p>
-  </div>
-
-  <!-- PIPELINE STEPS -->
-  <div class="pipeline">
-    <div class="step-node" id="step1">
-      <div class="step-circle">📦</div>
-      <div class="step-label">LOAD<br>MODEL</div>
-    </div>
-    <div class="step-connector" id="conn1"></div>
-    <div class="step-node" id="step2">
-      <div class="step-circle">💾</div>
-      <div class="step-label">SAVE<br>LOCALLY</div>
-    </div>
-    <div class="step-connector" id="conn2"></div>
-    <div class="step-node" id="step3">
-      <div class="step-circle">🔄</div>
-      <div class="step-label">RELOAD<br>MODEL</div>
-    </div>
-    <div class="step-connector" id="conn3"></div>
-    <div class="step-node" id="step4">
-      <div class="step-circle">⚡</div>
-      <div class="step-label">RUN<br>PREDICTIONS</div>
-    </div>
-  </div>
-
-  <!-- TABS -->
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('mnist')">✍️ Digit Classifier</button>
-    <button class="tab-btn" onclick="switchTab('iris')">🌸 Iris Classifier</button>
-  </div>
-
-  <!-- ═══════════════ MNIST TAB ═══════════════ -->
-  <div id="tab-mnist">
-
-    <!-- STEP 1: Load Pretrained Model -->
-    <div class="card highlighted" id="card-load">
-      <div class="card-header">
-        <div class="card-icon icon-purple">📦</div>
-        <div>
-          <div class="card-title">Step 1 — Load Pretrained MobileNet / MNIST Model</div>
-          <div class="card-desc">Load a pretrained digit recognition model via TensorFlow.js CDN</div>
-        </div>
-      </div>
-
-      <div class="section-badge">🔬 PRETRAINED MODEL</div>
-
-      <p style="font-size:13px; color:var(--muted); margin-bottom:20px; font-family:'JetBrains Mono',monospace; line-height:1.7;">
-        This demo uses a <strong style="color:var(--accent)">custom MNIST-style digit classifier</strong> built with TF.js layers API —
-        trained on handwritten digit patterns (0–9). The model architecture uses Conv2D layers
-        to achieve high accuracy on 28×28 grayscale images.
-      </p>
-
-      <div class="model-grid">
-        <div class="model-stat"><span class="val" id="stat-layers">—</span><span class="lbl">LAYERS</span></div>
-        <div class="model-stat"><span class="val" id="stat-params">—</span><span class="lbl">PARAMETERS</span></div>
-        <div class="model-stat"><span class="val" id="stat-input">28×28</span><span class="lbl">INPUT SIZE</span></div>
-        <div class="model-stat"><span class="val">10</span><span class="lbl">OUTPUT CLASSES</span></div>
-      </div>
-
-      <div class="progress-wrap"><div class="progress-fill" id="load-progress"></div></div>
-
-      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
-        <button class="btn btn-primary" id="btnLoadModel" onclick="loadModel()">
-          📦 Load Model
-        </button>
-        <button class="btn btn-secondary" id="btnModelInfo" onclick="showModelInfo()" disabled>
-          🔍 Model Summary
-        </button>
-      </div>
+    <div class="ambient-glow">
+        <div class="glow-1"></div>
+        <div class="glow-2"></div>
     </div>
 
-    <!-- STEP 2: Save Model -->
-    <div class="card" id="card-save">
-      <div class="card-header">
-        <div class="card-icon icon-blue">💾</div>
-        <div>
-          <div class="card-title">Step 2 — Save Model to IndexedDB / LocalStorage</div>
-          <div class="card-desc">Persist the trained model weights in the browser's local storage</div>
-        </div>
-      </div>
+    <header>
+        <h1>Model Edge Deployment</h1>
+        <p class="subtitle">Practical 7: Seamlessly load a pretrained MobileNet, cache it locally via IndexedDB, reload instantly, and run high-performance inference entirely in your browser.</p>
+    </header>
 
-      <p style="font-size:13px; color:var(--muted); font-family:'JetBrains Mono',monospace; line-height:1.7; margin-bottom:20px;">
-        TensorFlow.js supports saving models to <code style="color:var(--accent)">indexeddb://</code> or
-        <code style="color:var(--accent)">localstorage://</code>. The model topology (JSON) and
-        weights (binary) are stored in the browser — enabling <strong style="color:var(--text)">offline inference</strong>.
-      </p>
+    <main>
+        <!-- Control Panel -->
+        <div class="glass-panel">
+            <h2 class="panel-title"><i>⚙️</i> Model Operations</h2>
+            
+            <div class="status-container">
+                <div class="status-badge">
+                    <div class="status-dot" id="model-status-dot"></div>
+                    <span id="model-status-text">Model Not Loaded</span>
+                </div>
+            </div>
 
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="btn btn-primary" id="btnSaveModel" onclick="saveModel()" disabled>
-          💾 Save to IndexedDB
-        </button>
-        <button class="btn btn-secondary" id="btnDownload" onclick="downloadModel()" disabled>
-          ⬇️ Download as File
-        </button>
-      </div>
+            <div class="controls-group">
+                <div class="btn-wrapper">
+                    <div class="step-number">1</div>
+                    <button class="btn" id="btn-load-cdn" onclick="loadFromCDN()">
+                        Fetch Pretrained from CDN
+                        <span class="icon-span">☁️</span>
+                    </button>
+                </div>
 
-      <div class="storage-info" id="storageInfo" style="display:none;">
-        <div class="storage-item">
-          <div class="key">SAVE LOCATION</div>
-          <div class="val" id="savePath">indexeddb://mnist-model</div>
-        </div>
-        <div class="storage-item">
-          <div class="key">TIMESTAMP</div>
-          <div class="val" id="saveTime">—</div>
-        </div>
-        <div class="storage-item">
-          <div class="key">MODEL SIZE</div>
-          <div class="val" id="saveSize">—</div>
-        </div>
-        <div class="storage-item">
-          <div class="key">STATUS</div>
-          <div class="val" style="color:var(--accent3)" id="saveStatus">✓ SAVED</div>
-        </div>
-      </div>
-    </div>
+                <div class="btn-wrapper">
+                    <div class="step-number">2</div>
+                    <button class="btn" id="btn-save-local" onclick="saveToLocal()" disabled>
+                        Cache Model Locally (IndexedDB)
+                        <span class="icon-span">💾</span>
+                    </button>
+                </div>
 
-    <!-- STEP 3: Reload Model -->
-    <div class="card" id="card-reload">
-      <div class="card-header">
-        <div class="card-icon icon-green">🔄</div>
-        <div>
-          <div class="card-title">Step 3 — Reload Model from Storage</div>
-          <div class="card-desc">Load the persisted model back from IndexedDB and verify it</div>
-        </div>
-      </div>
-
-      <p style="font-size:13px; color:var(--muted); font-family:'JetBrains Mono',monospace; line-height:1.7; margin-bottom:20px;">
-        Use <code style="color:var(--accent)">tf.loadLayersModel('indexeddb://name')</code> to reload —
-        simulating a scenario where you open a new browser tab and the model loads instantly without re-downloading.
-      </p>
-
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="btn btn-success" id="btnReloadModel" onclick="reloadModel()" disabled>
-          🔄 Reload from IndexedDB
-        </button>
-        <button class="btn btn-secondary" id="btnVerify" onclick="verifyModel()" disabled>
-          ✅ Verify Integrity
-        </button>
-      </div>
-
-      <div id="reloadStatus" style="margin-top:16px; display:none;">
-        <div class="section-badge" style="color:var(--accent3); background:rgba(16,185,129,0.07); border-color:rgba(16,185,129,0.2);">
-          ✓ MODEL SUCCESSFULLY RELOADED FROM INDEXEDDB
-        </div>
-      </div>
-    </div>
-
-    <!-- STEP 4: Draw & Predict -->
-    <div class="card" id="card-predict">
-      <div class="card-header">
-        <div class="card-icon icon-amber">⚡</div>
-        <div>
-          <div class="card-title">Step 4 — Draw a Digit & Run Prediction</div>
-          <div class="card-desc">Draw any digit (0–9) on the canvas and classify it in real-time</div>
-        </div>
-      </div>
-
-      <div style="display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: start; flex-wrap: wrap;">
-        <div class="canvas-wrap">
-          <canvas id="drawCanvas" width="280" height="280"></canvas>
-          <div class="canvas-tools">
-            <button class="btn btn-secondary" onclick="clearCanvas()" style="padding:9px 18px; font-size:13px;">🗑️ Clear</button>
-            <button class="btn btn-primary" id="btnPredict" onclick="predictDigit()" disabled style="padding:9px 18px; font-size:13px;">⚡ Predict</button>
-          </div>
-          <p style="font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; text-align:center;">
-            Draw a digit using mouse / touch
-          </p>
+                <div class="btn-wrapper">
+                    <div class="step-number">3</div>
+                    <button class="btn" id="btn-reload-local" onclick="reloadFromLocal()" disabled>
+                        Reload Core from IndexedDB
+                        <span class="icon-span">⚡</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div>
-          <div class="result-box" id="resultBox">
-            <div class="result-placeholder">— Awaiting prediction —</div>
-          </div>
-          <div class="conf-bars" id="confBars"></div>
+        <!-- Predictor Panel -->
+        <div class="glass-panel viewer-section">
+            <h2 class="panel-title"><i>👁️</i> Visual Inference</h2>
+            
+            <div class="image-container">
+                <!-- Using a cute golden retriever puppy from unsplash -->
+                <img id="test-image" src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=800&auto=format&fit=crop" crossorigin="anonymous" alt="Test Subject">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: -0.5rem; flex-wrap: wrap;">
+                <input type="file" id="image-upload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <button class="btn" style="flex: 1; justify-content: center; padding: 1rem; border-style: dashed;" onclick="document.getElementById('image-upload').click()">
+                    Upload Image
+                    <span class="icon-span">📁</span>
+                </button>
+                <button class="btn btn-primary" id="btn-predict" onclick="runPrediction()" disabled style="flex: 2; min-width: 200px; justify-content: center; gap: 1rem; font-size: 1.1rem; padding: 1rem;">
+                    Run Prediction Engine
+                    <span class="icon-span">🚀</span>
+                </button>
+            </div>
+            <div class="log-container">
+                <div class="log-header">System Terminal logs</div>
+                <div class="log-box" id="log-box">
+                    <div class="log-entry info"><span class="timestamp">[SYS]</span> > Environment loaded. Awaiting instructions...</div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ═══════════════ IRIS TAB ═══════════════ -->
-  <div id="tab-iris" class="hidden">
-
-    <div class="card highlighted">
-      <div class="card-header">
-        <div class="card-icon icon-purple">🌸</div>
-        <div>
-          <div class="card-title">Iris Flower Classifier — MLP Model</div>
-          <div class="card-desc">Multi-layer perceptron trained on the classic Iris dataset</div>
-        </div>
-      </div>
-
-      <div class="section-badge">🔬 FULLY CONNECTED NEURAL NETWORK</div>
-
-      <p style="font-size:13px; color:var(--muted); margin-bottom:20px; font-family:'JetBrains Mono',monospace; line-height:1.7;">
-        Input: <code style="color:var(--accent)">4 features</code> (sepal length/width, petal length/width) →
-        Hidden Layers → Output: <code style="color:var(--accent)">3 classes</code> (Setosa, Versicolor, Virginica)
-      </p>
-
-      <div class="model-grid">
-        <div class="model-stat"><span class="val">4</span><span class="lbl">INPUTS</span></div>
-        <div class="model-stat"><span class="val">3</span><span class="lbl">CLASSES</span></div>
-        <div class="model-stat"><span class="val">2</span><span class="lbl">HIDDEN LAYERS</span></div>
-        <div class="model-stat"><span class="val" id="iris-stat-params">—</span><span class="lbl">PARAMETERS</span></div>
-      </div>
-
-      <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
-        <button class="btn btn-primary" id="btnBuildIris" onclick="buildAndSaveIrisModel()">
-          🌸 Build & Train Iris Model
-        </button>
-        <button class="btn btn-secondary" id="btnLoadIris" onclick="loadIrisFromStorage()" disabled>
-          🔄 Reload from Storage
-        </button>
-      </div>
-      <div class="progress-wrap"><div class="progress-fill" id="iris-progress"></div></div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-icon icon-green">⚡</div>
-        <div>
-          <div class="card-title">Run Iris Prediction</div>
-          <div class="card-desc">Enter flower measurements to classify</div>
-        </div>
-      </div>
-
-      <div class="input-grid">
-        <div class="input-group">
-          <label>SEPAL LENGTH (cm)</label>
-          <input type="number" id="sepalLen" value="5.1" step="0.1" min="4" max="8">
-        </div>
-        <div class="input-group">
-          <label>SEPAL WIDTH (cm)</label>
-          <input type="number" id="sepalWid" value="3.5" step="0.1" min="2" max="5">
-        </div>
-        <div class="input-group">
-          <label>PETAL LENGTH (cm)</label>
-          <input type="number" id="petalLen" value="1.4" step="0.1" min="1" max="7">
-        </div>
-        <div class="input-group">
-          <label>PETAL WIDTH (cm)</label>
-          <input type="number" id="petalWid" value="0.2" step="0.1" min="0" max="3">
-        </div>
-      </div>
-
-      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
-        <button class="btn btn-primary" id="btnIrisPredict" onclick="predictIris()" disabled>
-          ⚡ Classify Flower
-        </button>
-        <button class="btn btn-secondary" onclick="setRandomIris()">
-          🎲 Random Sample
-        </button>
-      </div>
-
-      <div class="result-box" id="irisResult">
-        <div class="result-placeholder">— Enter measurements and classify —</div>
-      </div>
-      <div class="conf-bars" id="irisConfBars" style="margin-top:12px;"></div>
-    </div>
-
-  </div>
-
-  <!-- LOG TERMINAL -->
-  <div class="card" style="margin-top:8px;">
-    <div class="card-header" style="margin-bottom:0;">
-      <div class="card-icon icon-blue">🖥️</div>
-      <div>
-        <div class="card-title">System Log</div>
-        <div class="card-desc">Real-time execution trace</div>
-      </div>
-      <button class="btn btn-secondary" onclick="clearLog()" style="margin-left:auto; padding:8px 16px; font-size:12px;">Clear</button>
-    </div>
-    <div style="margin-top:16px;">
-      <div class="terminal">
-        <div class="terminal-header">
-          <div class="dot dot-r"></div>
-          <div class="dot dot-y"></div>
-          <div class="dot dot-g"></div>
-          <span class="terminal-title">TENSORFLOW.JS — BROWSER CONSOLE</span>
-        </div>
-        <div class="terminal-body" id="logBody"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="info-footer">
-    TENSORFLOW.JS CDN v4.15.0 · INDEXEDDB STORAGE · WEBGL BACKEND · NO SERVER REQUIRED
-  </div>
-</div>
-
-<script>
-// ══════════════════════════════════════════════
-//  GLOBALS
-// ══════════════════════════════════════════════
-let mnistModel = null;
-let irisModel  = null;
-let modelSaved = false;
-let irisSaved  = false;
-let isDrawing  = false;
-
-const MNIST_KEY = 'indexeddb://mnist-digit-model';
-const IRIS_KEY  = 'indexeddb://iris-flower-model';
-
-const CLASS_NAMES_IRIS = ['Iris Setosa', 'Iris Versicolor', 'Iris Virginica'];
-const IRIS_COLORS = ['#00e5ff','#7c3aed','#10b981'];
-
-// ══════════════════════════════════════════════
-//  LOGGER
-// ══════════════════════════════════════════════
-function log(msg, type='info') {
-  const body = document.getElementById('logBody');
-  const ts = new Date().toLocaleTimeString('en',{hour12:false});
-  const div = document.createElement('div');
-  div.className = `log-line log-${type}`;
-  const prefix = {info:'►',success:'✓',warn:'⚠',error:'✗',dim:'·'}[type] || '>';
-  div.textContent = `[${ts}] ${prefix} ${msg}`;
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
-}
-
-function clearLog() {
-  document.getElementById('logBody').innerHTML = '';
-  log('Console cleared.', 'dim');
-}
-
-// ══════════════════════════════════════════════
-//  PIPELINE STATE
-// ══════════════════════════════════════════════
-function setStep(n) {
-  for(let i=1;i<=4;i++) {
-    const el = document.getElementById(`step${i}`);
-    el.classList.remove('active','done');
-    if(i < n) el.classList.add('done');
-    else if(i === n) el.classList.add('active');
-  }
-  for(let i=1;i<=3;i++) {
-    const c = document.getElementById(`conn${i}`);
-    if(c) { c.classList.toggle('filled', i < n); }
-  }
-}
-
-function setProgress(id, pct) {
-  document.getElementById(id).style.width = pct + '%';
-}
-
-// ══════════════════════════════════════════════
-//  TAB SWITCH
-// ══════════════════════════════════════════════
-function switchTab(tab) {
-  document.getElementById('tab-mnist').classList.toggle('hidden', tab !== 'mnist');
-  document.getElementById('tab-iris').classList.toggle('hidden', tab !== 'iris');
-  document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', (i===0 && tab==='mnist') || (i===1 && tab==='iris'));
-  });
-}
-
-// ══════════════════════════════════════════════
-//  STEP 1 — BUILD / SIMULATE PRETRAINED MODEL
-// ══════════════════════════════════════════════
-async function loadModel() {
-  document.getElementById('btnLoadModel').disabled = true;
-  document.getElementById('btnLoadModel').innerHTML = '<span class="spinner"></span> Loading...';
-  setStep(1);
-  log('Initializing TensorFlow.js backend...');
-
-  await tf.ready();
-  log(`Backend active: ${tf.getBackend().toUpperCase()}`, 'success');
-  setProgress('load-progress', 20);
-
-  log('Building MNIST digit classifier architecture...');
-  await new Promise(r => setTimeout(r, 400));
-  setProgress('load-progress', 40);
-
-  // Build a CNN model that mimics MNIST
-  mnistModel = tf.sequential({
-    layers: [
-      tf.layers.conv2d({ inputShape:[28,28,1], filters:8, kernelSize:3, activation:'relu', padding:'same' }),
-      tf.layers.maxPooling2d({ poolSize:[2,2] }),
-      tf.layers.conv2d({ filters:16, kernelSize:3, activation:'relu', padding:'same' }),
-      tf.layers.maxPooling2d({ poolSize:[2,2] }),
-      tf.layers.flatten(),
-      tf.layers.dense({ units:64, activation:'relu' }),
-      tf.layers.dropout({ rate:0.25 }),
-      tf.layers.dense({ units:10, activation:'softmax' })
-    ]
-  });
-
-  mnistModel.compile({ optimizer:'adam', loss:'categoricalCrossentropy', metrics:['accuracy'] });
-
-  setProgress('load-progress', 60);
-  log('Model compiled with Adam optimizer', 'success');
-
-  // Simulate pretrained weights by doing a quick warm-up pass
-  log('Initializing pretrained weights (warm-up pass)...', 'dim');
-  const warmup = tf.zeros([1,28,28,1]);
-  await mnistModel.predict(warmup).data();
-  warmup.dispose();
-
-  setProgress('load-progress', 80);
-
-  // Simulate "training" with synthetic data to seed recognizable patterns
-  log('Applying pretrained weight initialization...', 'dim');
-  await new Promise(r => setTimeout(r, 300));
-
-  setProgress('load-progress', 100);
-
-  const numParams = mnistModel.countParams();
-  document.getElementById('stat-layers').textContent  = mnistModel.layers.length;
-  document.getElementById('stat-params').textContent = numParams.toLocaleString();
-
-  log(`Model loaded: ${mnistModel.layers.length} layers, ${numParams.toLocaleString()} params`, 'success');
-  log('Model ready for use!', 'success');
-
-  document.getElementById('btnLoadModel').innerHTML = '✓ Model Loaded';
-  document.getElementById('btnSaveModel').disabled   = false;
-  document.getElementById('btnModelInfo').disabled   = false;
-  document.getElementById('btnPredict').disabled     = false;
-  setStep(2);
-}
-
-function showModelInfo() {
-  if(!mnistModel) return;
-  log('─── Model Summary ───', 'dim');
-  mnistModel.layers.forEach((l,i) => {
-    const shape = l.outputShape;
-    log(`  Layer ${i}: ${l.name} → output ${JSON.stringify(shape)}`, 'dim');
-  });
-  log(`Total trainable params: ${mnistModel.countParams().toLocaleString()}`, 'info');
-}
-
-// ══════════════════════════════════════════════
-//  STEP 2 — SAVE MODEL
-// ══════════════════════════════════════════════
-async function saveModel() {
-  if(!mnistModel) { log('No model loaded!', 'error'); return; }
-  document.getElementById('btnSaveModel').disabled = true;
-  document.getElementById('btnSaveModel').innerHTML = '<span class="spinner"></span> Saving...';
-  log('Saving model to IndexedDB...', 'info');
-
-  try {
-    const saveResult = await mnistModel.save(MNIST_KEY);
-    log(`Model saved → ${MNIST_KEY}`, 'success');
-    log(`Topology: ${JSON.stringify(saveResult.modelArtifactsInfo?.modelTopologyBytes || 'ok')} bytes`, 'dim');
-
-    const now = new Date();
-    document.getElementById('saveTime').textContent  = now.toLocaleString();
-    document.getElementById('saveSize').textContent  = `~${Math.round(mnistModel.countParams()*4/1024)} KB`;
-    document.getElementById('storageInfo').style.display = 'grid';
-    document.getElementById('btnReloadModel').disabled   = false;
-    document.getElementById('btnDownload').disabled      = false;
-
-    modelSaved = true;
-    document.getElementById('btnSaveModel').innerHTML = '✓ Saved';
-    setStep(3);
-    log('Model successfully persisted to browser IndexedDB!', 'success');
-  } catch(e) {
-    log(`Save error: ${e.message}`, 'error');
-    document.getElementById('btnSaveModel').disabled = false;
-    document.getElementById('btnSaveModel').innerHTML = '💾 Save to IndexedDB';
-  }
-}
-
-async function downloadModel() {
-  if(!mnistModel) return;
-  log('Preparing model for download...', 'info');
-  await mnistModel.save('downloads://mnist-digit-model');
-  log('Model downloaded as .json + .bin files!', 'success');
-}
-
-// ══════════════════════════════════════════════
-//  STEP 3 — RELOAD MODEL
-// ══════════════════════════════════════════════
-async function reloadModel() {
-  document.getElementById('btnReloadModel').disabled = true;
-  document.getElementById('btnReloadModel').innerHTML = '<span class="spinner"></span> Reloading...';
-  log('Loading model back from IndexedDB...', 'info');
-
-  try {
-    // Dispose old model
-    if(mnistModel) { mnistModel.dispose(); }
-
-    mnistModel = await tf.loadLayersModel(MNIST_KEY);
-    mnistModel.compile({ optimizer:'adam', loss:'categoricalCrossentropy', metrics:['accuracy'] });
-
-    log('Model topology restored ✓', 'success');
-    log('Model weights restored ✓', 'success');
-    log(`Reloaded: ${mnistModel.layers.length} layers`, 'success');
-
-    document.getElementById('btnReloadModel').innerHTML = '✓ Reloaded';
-    document.getElementById('btnVerify').disabled = false;
-    document.getElementById('reloadStatus').style.display = 'block';
-    setStep(4);
-    log('Model fully operational — ready for inference!', 'success');
-  } catch(e) {
-    log(`Reload error: ${e.message} — please save first`, 'error');
-    document.getElementById('btnReloadModel').disabled = false;
-    document.getElementById('btnReloadModel').innerHTML = '🔄 Reload from IndexedDB';
-  }
-}
-
-async function verifyModel() {
-  if(!mnistModel) return;
-  log('Running integrity check...', 'info');
-  const dummy = tf.zeros([1,28,28,1]);
-  const pred = mnistModel.predict(dummy);
-  const vals = await pred.data();
-  dummy.dispose(); pred.dispose();
-  const sum = vals.reduce((a,b) => a+b, 0);
-  if(Math.abs(sum - 1.0) < 0.01) {
-    log(`Integrity check passed ✓ (output sums to ${sum.toFixed(4)})`, 'success');
-  } else {
-    log(`Warning: output sum = ${sum.toFixed(4)} (expected ~1.0)`, 'warn');
-  }
-}
-
-// ══════════════════════════════════════════════
-//  CANVAS DRAWING
-// ══════════════════════════════════════════════
-const canvas  = document.getElementById('drawCanvas');
-const ctx     = canvas.getContext('2d');
-
-ctx.fillStyle = '#000';
-ctx.fillRect(0,0,280,280);
-ctx.strokeStyle = '#fff';
-ctx.lineWidth = 18;
-ctx.lineCap = 'round';
-ctx.lineJoin = 'round';
-
-function getPos(e) {
-  const r = canvas.getBoundingClientRect();
-  const src = e.touches ? e.touches[0] : e;
-  return { x: src.clientX - r.left, y: src.clientY - r.top };
-}
-
-canvas.addEventListener('mousedown', e => { isDrawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
-canvas.addEventListener('mousemove', e => { if(!isDrawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
-canvas.addEventListener('mouseup',   () => { isDrawing=false; });
-canvas.addEventListener('mouseleave',() => { isDrawing=false; });
-canvas.addEventListener('touchstart',e => { e.preventDefault(); isDrawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!isDrawing)return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
-canvas.addEventListener('touchend',  e => { e.preventDefault(); isDrawing=false; });
-
-function clearCanvas() {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0,0,280,280);
-  document.getElementById('resultBox').className = 'result-box';
-  document.getElementById('resultBox').innerHTML = '<div class="result-placeholder">— Awaiting prediction —</div>';
-  document.getElementById('confBars').innerHTML = '';
-  log('Canvas cleared', 'dim');
-}
-
-// ══════════════════════════════════════════════
-//  STEP 4 — PREDICT (MNIST)
-// ══════════════════════════════════════════════
-async function predictDigit() {
-  if(!mnistModel) { log('Model not loaded!', 'error'); return; }
-  log('Preprocessing canvas image (28×28 grayscale)...', 'info');
-
-  const tensor = tf.tidy(() => {
-    const img = tf.browser.fromPixels(canvas, 1);
-    const resized = tf.image.resizeBilinear(img, [28,28]);
-    const normalized = resized.div(255.0);
-    return normalized.expandDims(0);
-  });
-
-  const preds = mnistModel.predict(tensor);
-  const probsArr = await preds.data();
-  tensor.dispose(); preds.dispose();
-
-  const probs = Array.from(probsArr);
-  const maxIdx = probs.indexOf(Math.max(...probs));
-  const confidence = (probs[maxIdx] * 100).toFixed(1);
-
-  document.getElementById('resultBox').className = 'result-box has-result';
-  document.getElementById('resultBox').innerHTML = `
-    <div class="result-prediction">${maxIdx}</div>
-    <div class="result-label">Predicted Digit</div>
-    <div class="result-confidence">${confidence}% confidence</div>
-  `;
-
-  // Confidence bars
-  const bars = document.getElementById('confBars');
-  bars.innerHTML = '<div style="font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace;margin-bottom:10px;letter-spacing:1px;">ALL CLASS PROBABILITIES</div>';
-  probs.forEach((p,i) => {
-    const pct = (p*100).toFixed(1);
-    const color = i === maxIdx ? '#10b981' : '#334155';
-    bars.innerHTML += `
-      <div class="conf-row">
-        <div class="lbl">Digit ${i}</div>
-        <div class="conf-bar-wrap"><div class="conf-bar-fill" style="width:${pct}%; background:${color};"></div></div>
-        <div class="pct">${pct}%</div>
-      </div>`;
-  });
-
-  log(`Prediction: Digit "${maxIdx}" with ${confidence}% confidence`, 'success');
-}
-
-// ══════════════════════════════════════════════
-//  IRIS MODEL
-// ══════════════════════════════════════════════
-// Normalized Iris dataset samples
-const IRIS_DATA = [
-  // Setosa
-  [5.1,3.5,1.4,0.2,0],[4.9,3.0,1.4,0.2,0],[4.7,3.2,1.3,0.2,0],[4.6,3.1,1.5,0.2,0],[5.0,3.6,1.4,0.2,0],
-  [5.4,3.9,1.7,0.4,0],[4.6,3.4,1.4,0.3,0],[5.0,3.4,1.5,0.2,0],[4.4,2.9,1.4,0.2,0],[4.9,3.1,1.5,0.1,0],
-  [5.4,3.7,1.5,0.2,0],[4.8,3.4,1.6,0.2,0],[4.8,3.0,1.4,0.1,0],[4.3,3.0,1.1,0.1,0],[5.8,4.0,1.2,0.2,0],
-  // Versicolor
-  [7.0,3.2,4.7,1.4,1],[6.4,3.2,4.5,1.5,1],[6.9,3.1,4.9,1.5,1],[5.5,2.3,4.0,1.3,1],[6.5,2.8,4.6,1.5,1],
-  [5.7,2.8,4.5,1.3,1],[6.3,3.3,4.7,1.6,1],[4.9,2.4,3.3,1.0,1],[6.6,2.9,4.6,1.3,1],[5.2,2.7,3.9,1.4,1],
-  [5.0,2.0,3.5,1.0,1],[5.9,3.0,4.2,1.5,1],[6.0,2.2,4.0,1.0,1],[6.1,2.9,4.7,1.4,1],[5.6,2.9,3.6,1.3,1],
-  // Virginica
-  [6.3,3.3,6.0,2.5,2],[5.8,2.7,5.1,1.9,2],[7.1,3.0,5.9,2.1,2],[6.3,2.9,5.6,1.8,2],[6.5,3.0,5.8,2.2,2],
-  [7.6,3.0,6.6,2.1,2],[4.9,2.5,4.5,1.7,2],[7.3,2.9,6.3,1.8,2],[6.7,2.5,5.8,1.8,2],[7.2,3.6,6.1,2.5,2],
-  [6.5,3.2,5.1,2.0,2],[6.4,2.7,5.3,1.9,2],[6.8,3.0,5.5,2.1,2],[5.7,2.5,5.0,2.0,2],[5.8,2.8,5.1,2.4,2],
-];
-
-async function buildAndSaveIrisModel() {
-  document.getElementById('btnBuildIris').disabled = true;
-  document.getElementById('btnBuildIris').innerHTML = '<span class="spinner"></span> Training...';
-  log('Building Iris MLP model...', 'info');
-
-  irisModel = tf.sequential({
-    layers: [
-      tf.layers.dense({ inputShape:[4], units:16, activation:'relu' }),
-      tf.layers.dense({ units:16, activation:'relu' }),
-      tf.layers.dense({ units:3, activation:'softmax' })
-    ]
-  });
-  irisModel.compile({ optimizer:tf.train.adam(0.01), loss:'categoricalCrossentropy', metrics:['accuracy'] });
-
-  const params = irisModel.countParams();
-  document.getElementById('iris-stat-params').textContent = params;
-  log(`Iris model: ${params} parameters`, 'success');
-
-  // Prepare data
-  const xs = tf.tensor2d(IRIS_DATA.map(d => d.slice(0,4)));
-  const ys = tf.oneHot(tf.tensor1d(IRIS_DATA.map(d => d[4]), 'int32'), 3);
-
-  log('Training Iris model (50 epochs)...', 'info');
-
-  let lastLoss = 0;
-  await irisModel.fit(xs, ys, {
-    epochs: 50,
-    batchSize: 8,
-    shuffle: true,
-    callbacks: {
-      onEpochEnd: async (epoch, logs) => {
-        const pct = Math.round((epoch+1)/50*100);
-        setProgress('iris-progress', pct);
-        lastLoss = logs.loss;
-        if ((epoch+1) % 10 === 0) {
-          log(`Epoch ${epoch+1}/50 — loss: ${logs.loss.toFixed(4)}, acc: ${(logs.acc*100).toFixed(1)}%`, 'dim');
+    </main>
+
+    <!-- Simple array of ImageNet classes for wow factor without loading massive maps -->
+    <script>
+        // Load the ImageNet 1000 class map mapped dynamically from standard storage
+        let IMAGENET_CLASSES = null;
+
+        async function preloadClasses() {
+            try {
+                const res = await fetch('https://storage.googleapis.com/download.tensorflow.org/data/imagenet_class_index.json');
+                IMAGENET_CLASSES = await res.json();
+                log('Class map loaded from cloud.', 'info');
+            } catch (err) {
+                log('Failed to load ImageNet class labels.', 'error');
+            }
         }
-        await tf.nextFrame();
-      }
-    }
-  });
-  xs.dispose(); ys.dispose();
-  log(`Training complete! Final loss: ${lastLoss.toFixed(4)}`, 'success');
 
-  // Save
-  await irisModel.save(IRIS_KEY);
-  irisSaved = true;
-  log(`Iris model saved → ${IRIS_KEY}`, 'success');
+        // Global state for the model
+        let currentModel = null;
+        let activeModelSource = 'none'; // 'cdn' or 'local'
 
-  document.getElementById('btnBuildIris').innerHTML = '✓ Trained & Saved';
-  document.getElementById('btnLoadIris').disabled = false;
-  document.getElementById('btnIrisPredict').disabled = false;
-}
+        // DOM elements
+        const statDot = document.getElementById('model-status-dot');
+        const statText = document.getElementById('model-status-text');
+        const logBox = document.getElementById('log-box');
+        
+        // Buttons
+        const btnLoad = document.getElementById('btn-load-cdn');
+        const btnSave = document.getElementById('btn-save-local');
+        const btnReload = document.getElementById('btn-reload-local');
+        const btnPredict = document.getElementById('btn-predict');
 
-async function loadIrisFromStorage() {
-  document.getElementById('btnLoadIris').disabled = true;
-  document.getElementById('btnLoadIris').innerHTML = '<span class="spinner"></span> Loading...';
-  log('Reloading Iris model from IndexedDB...', 'info');
+        function log(message, type = '') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            
+            entry.innerHTML = `<span class="timestamp">[${ts}]</span> > ${message}`;
+            logBox.appendChild(entry);
+            // Auto scroll to bottom smoothly
+            logBox.scrollTo({ top: logBox.scrollHeight, behavior: 'smooth' });
+            console.log(message);
+        }
 
-  try {
-    if(irisModel) irisModel.dispose();
-    irisModel = await tf.loadLayersModel(IRIS_KEY);
-    irisModel.compile({ optimizer:'adam', loss:'categoricalCrossentropy', metrics:['accuracy'] });
-    log('Iris model reloaded from IndexedDB ✓', 'success');
-    document.getElementById('btnLoadIris').innerHTML = '✓ Reloaded';
-    document.getElementById('btnIrisPredict').disabled = false;
-  } catch(e) {
-    log(`Failed to reload: ${e.message} — please train first`, 'error');
-    document.getElementById('btnLoadIris').disabled = false;
-    document.getElementById('btnLoadIris').innerHTML = '🔄 Reload from Storage';
-  }
-}
+        function setStatus(loading, loaded, source) {
+            if (loading) {
+                statDot.className = 'status-dot loading';
+                statText.textContent = `Loading from ${source}...`;
+                btnLoad.disabled = true;
+                btnSave.disabled = true;
+                btnReload.disabled = true;
+                btnPredict.disabled = true;
+            } else if (loaded) {
+                statDot.className = 'status-dot active';
+                statText.textContent = `Active (${source})`;
+                activeModelSource = source;
+                
+                btnLoad.disabled = false;
+                btnSave.disabled = false; 
+                btnReload.disabled = false; 
+                btnPredict.disabled = false;
+                
+                // Add success styling
+                btnPredict.classList.add('btn-success');
+                btnPredict.classList.remove('btn-primary');
+            } else {
+                statDot.className = 'status-dot';
+                statText.textContent = 'Model Offline';
+                activeModelSource = 'none';
+                
+                btnLoad.disabled = false;
+                btnSave.disabled = true;
+                btnReload.disabled = false; // Allow trying reload if user thinks it's saved
+                btnPredict.disabled = true;
+                
+                btnPredict.classList.remove('btn-success');
+                btnPredict.classList.add('btn-primary');
+            }
+        }
 
-function setRandomIris() {
-  const samples = [
-    [5.1,3.5,1.4,0.2],[4.9,3.0,1.4,0.2],[7.0,3.2,4.7,1.4],[6.4,3.2,4.5,1.5],
-    [6.3,3.3,6.0,2.5],[7.1,3.0,5.9,2.1],[6.0,2.2,4.0,1.0],[5.4,3.9,1.7,0.4]
-  ];
-  const s = samples[Math.floor(Math.random()*samples.length)];
-  document.getElementById('sepalLen').value = s[0];
-  document.getElementById('sepalWid').value = s[1];
-  document.getElementById('petalLen').value = s[2];
-  document.getElementById('petalWid').value = s[3];
-}
+        // Initialize state
+        setStatus(false, false, 'none');
 
-async function predictIris() {
-  if(!irisModel) { log('Iris model not loaded!', 'error'); return; }
+        // 1. Fetch from CDN
+        async function loadFromCDN() {
+            log('Initializing WebGL Backend...', 'info');
+            log('Fetching MobileNet v1 (0.25) [Pretrained] from TFJS CDN...');
+            setStatus(true, false, 'CDN');
+            
+            try {
+                // Use a standard small TFJS LayersModel available via CDN
+                const modelUrl = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
+                currentModel = await tf.loadLayersModel(modelUrl);
+                
+                log(`Graph loaded! Params: ${currentModel.countParams()}`, 'success');
+                log(`Input Shape Signature: [${currentModel.inputs[0].shape}]`, 'info');
+                setStatus(false, true, 'CDN');
+                
+                // Guide user to next step visually
+                btnSave.style.boxShadow = '0 0 15px var(--primary)';
+                setTimeout(() => { btnSave.style.boxShadow = ''; }, 2000);
 
-  const sl = parseFloat(document.getElementById('sepalLen').value);
-  const sw = parseFloat(document.getElementById('sepalWid').value);
-  const pl = parseFloat(document.getElementById('petalLen').value);
-  const pw = parseFloat(document.getElementById('petalWid').value);
+            } catch (err) {
+                log(`Failed to load CDN model: ${err.message}`, 'error');
+                setStatus(false, false, 'none');
+            }
+        }
 
-  log(`Classifying: sepal[${sl},${sw}] petal[${pl},${pw}]`, 'info');
+        // 2. Save Model Locally
+        async function saveToLocal() {
+            if (!currentModel) {
+                log('ERR: No active model in memory.', 'error');
+                return;
+            }
+            log('Serializing graph and weights...', 'info');
+            btnSave.disabled = true;
+            
+            try {
+                // Save to IndexedDB
+                const start = performance.now();
+                const saveResult = await currentModel.save('indexeddb://practical7-model');
+                const end = performance.now();
+                
+                const kb = (saveResult.modelArtifactsInfo.weightDataBytes / 1024).toFixed(1);
+                log(`Model successfully serialized to IndexedDB in ${Math.round(end-start)}ms`, 'success');
+                log(`Artifact size tracked: ${kb} KB`, 'info');
+                
+                btnSave.disabled = false;
+                
+                // Emphasize reload button
+                btnReload.classList.add('btn-primary');
+                btnReload.parentElement.querySelector('.step-number').style.background = 'var(--primary)';
 
-  const input = tf.tensor2d([[sl, sw, pl, pw]]);
-  const pred = irisModel.predict(input);
-  const probs = await pred.data();
-  input.dispose(); pred.dispose();
+            } catch (err) {
+                log(`IO Error writing to IndexedDB: ${err.message}`, 'error');
+                btnSave.disabled = false;
+            }
+        }
 
-  const probsArr = Array.from(probs);
-  const maxIdx   = probsArr.indexOf(Math.max(...probsArr));
-  const conf     = (probsArr[maxIdx]*100).toFixed(1);
+        // 3. Reload Model from Local Storage
+        async function reloadFromLocal() {
+            log('Accessing local IndexedDB storage...', 'info');
+            setStatus(true, false, 'Local');
+            
+            try {
+                // Flush memory
+                if (currentModel) {
+                    currentModel.dispose();
+                    currentModel = null;
+                    log('Previous model flushed from memory mapped buffers.');
+                }
 
-  const emojis = ['🌸','🌿','🌺'];
-  document.getElementById('irisResult').className = 'result-box has-result';
-  document.getElementById('irisResult').innerHTML = `
-    <div style="font-size:52px;">${emojis[maxIdx]}</div>
-    <div class="result-prediction" style="font-size:28px;">${CLASS_NAMES_IRIS[maxIdx]}</div>
-    <div class="result-confidence">${conf}% confidence</div>
-  `;
+                const start = performance.now();
+                currentModel = await tf.loadLayersModel('indexeddb://practical7-model');
+                const end = performance.now();
+                
+                log(`Zero-latency reload complete! [${Math.round(end-start)}ms]`, 'success');
+                btnReload.classList.remove('btn-primary');
+                btnReload.parentElement.querySelector('.step-number').style.background = 'var(--bg-lighter)';
+                
+                setStatus(false, true, 'LocalDB');
+                
+                // Emphasize predict button
+                btnPredict.style.transform = 'scale(1.05)';
+                setTimeout(() => { btnPredict.style.transform = ''; }, 500);
 
-  const bars = document.getElementById('irisConfBars');
-  bars.innerHTML = '<div style="font-size:11px;color:var(--muted);font-family:JetBrains Mono,monospace;margin-bottom:10px;letter-spacing:1px;">CLASS PROBABILITIES</div>';
-  CLASS_NAMES_IRIS.forEach((name,i) => {
-    const pct = (probsArr[i]*100).toFixed(1);
-    bars.innerHTML += `
-      <div class="conf-row">
-        <div class="lbl">${name.split(' ')[1]}</div>
-        <div class="conf-bar-wrap"><div class="conf-bar-fill" style="width:${pct}%; background:${i===maxIdx?IRIS_COLORS[i]:'var(--dim)'};"></div></div>
-        <div class="pct">${pct}%</div>
-      </div>`;
-  });
+            } catch (err) {
+                log(`Failed to reload: ${err.message}`, 'error');
+                setStatus(false, false, 'none');
+            }
+        }
 
-  log(`Result: ${CLASS_NAMES_IRIS[maxIdx]} (${conf}% confidence)`, 'success');
-}
+        // 4. Run Prediction
+        async function runPrediction() {
+            if (!currentModel) return;
+            
+            log('Initializing inference engine...', 'info');
+            btnPredict.disabled = true;
+            btnPredict.innerHTML = 'Computing... <span class="icon-span">⚙️</span>';
 
-// ══════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════
-window.addEventListener('load', async () => {
-  await tf.ready();
-  log('TensorFlow.js initialized ✓', 'success');
-  log(`Backend: ${tf.getBackend().toUpperCase()}`, 'info');
-  log('Use the pipeline buttons above to: Load → Save → Reload → Predict', 'dim');
-  log('Select Iris tab for tabular data classification demo', 'dim');
-  setStep(1);
-});
-</script>
+            const imgElement = document.getElementById('test-image');
+
+            try {
+                // Allow UI thread to repaint
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                const start = performance.now();
+
+                // Build Tensor
+                const prediction = tf.tidy(() => {
+                    const imgTensor = tf.browser.fromPixels(imgElement);
+                    const resized = tf.image.resizeBilinear(imgTensor, [224, 224]);
+                    
+                    // MobileNet preprocess: Normalize to [-1, 1]
+                    const normalized = resized.toFloat().div(tf.scalar(127.5)).sub(tf.scalar(1));
+                    const batched = normalized.expandDims(0);
+                    
+                    return currentModel.predict(batched);
+                });
+
+                // Extract data
+                const probs = await prediction.data();
+                prediction.dispose();
+
+                // Find top probability
+                let maxProb = 0;
+                let maxIndex = 0;
+                for (let i = 0; i < probs.length; i++) {
+                    if (probs[i] > maxProb) {
+                        maxProb = probs[i];
+                        maxIndex = i;
+                    }
+                }
+
+                const end = performance.now();
+
+                // Determine readable class string if available
+                let className = `Class ID #${maxIndex}`;
+                // Depending on the MobileNet version, background class might offset indices
+                // Check direct match or offset map
+                if (IMAGENET_CLASSES && IMAGENET_CLASSES[String(maxIndex)]) {
+                    className = IMAGENET_CLASSES[String(maxIndex)][1].replace(/_/g, ' ');
+                } else if (IMAGENET_CLASSES && IMAGENET_CLASSES[String(maxIndex - 1)]) {
+                    className = IMAGENET_CLASSES[String(maxIndex - 1)][1].replace(/_/g, ' ');
+                }
+
+                log(`🔥 inference_time: ${Math.round(end-start)}ms`, 'info');
+                log(`>>> PREDICTION: ${className}`, 'success');
+                log(`>>> CONFIDENCE: ${(maxProb * 100).toFixed(2)}%`, 'success');
+                
+            } catch (err) {
+                log(`Inference exception: ${err.message}`, 'error');
+            } finally {
+                btnPredict.disabled = false;
+                btnPredict.innerHTML = 'Run Prediction Engine <span class="icon-span">🚀</span>';
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            log(`Loading new image: ${file.name}...`, 'info');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgElement = document.getElementById('test-image');
+                imgElement.src = e.target.result;
+                log('Image updated. Ready for inference.', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Boot Check
+        window.addEventListener('load', async () => {
+            log('Checking persistent local cache...');
+            try {
+                const models = await tf.io.listModels();
+                if (models['indexeddb://practical7-model']) {
+                    log('Found cached graph in IndexedDB. Ready for instant reload.', 'success');
+                    btnReload.disabled = false;
+                    btnReload.classList.add('btn-primary');
+                    btnReload.parentElement.querySelector('.step-number').style.background = 'var(--primary)';
+                } else {
+                    log('No cached models detected. Begin at Step 1.', 'info');
+                }
+            } catch(e) {
+                log('IndexedDB initialization failed. Local storage disabled.', 'error');
+            }
+            
+            // Initiate parallel downloads
+            preloadClasses();
+        });
+    </script>
 </body>
 </html>
