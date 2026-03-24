@@ -11,15 +11,15 @@
 
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --bg-lighter: #1e293b;
-            --primary: #8b5cf6;
-            --secondary: #3b82f6;
-            --accent: #10b981;
-            --text-light: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1);
-            --surface: rgba(30, 41, 59, 0.7);
+            --bg-dark: #f1f5f9;
+            --bg-lighter: #ffffff;
+            --primary: #6d28d9;
+            --secondary: #2563eb;
+            --accent: #059669;
+            --text-light: #0f172a;
+            --text-muted: #475569;
+            --border: rgba(0, 0, 0, 0.1);
+            --surface: rgba(255, 255, 255, 0.7);
         }
 
         * {
@@ -30,7 +30,7 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: #020617; /* Dark slate */
+            background: #f8fafc; /* Light slate */
             color: var(--text-light);
             min-height: 100vh;
             display: flex;
@@ -88,7 +88,7 @@
         h1 {
             font-size: 3.5rem;
             font-weight: 800;
-            background: linear-gradient(to right, #c4b5fd, #93c5fd);
+            background: linear-gradient(to right, #6d28d9, #2563eb);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -118,13 +118,13 @@
         }
 
         .glass-panel {
-            background: rgba(30, 41, 59, 0.5); /* Semi-transparent */
+            background: rgba(255, 255, 255, 0.7); /* Semi-transparent */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             border-radius: 24px;
             padding: 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.7);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
             position: relative;
             overflow: hidden;
@@ -136,8 +136,8 @@
 
         .glass-panel:hover {
             transform: translateY(-8px);
-            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255,255,255,0.2);
-            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.9);
+            border-color: rgba(0, 0, 0, 0.1);
         }
 
         /* Add a subtle highlight line at the top of panels */
@@ -146,8 +146,8 @@
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            opacity: 0.5;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            opacity: 0.7;
         }
 
         .panel-title {
@@ -157,7 +157,7 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            color: #f1f5f9;
+            color: #0f172a;
         }
 
         .panel-title i {
@@ -194,14 +194,14 @@
             font-weight: 800;
             font-size: 0.85rem;
             z-index: 2;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
         }
 
         button.btn {
             width: 100%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             color: var(--text-light);
             font-family: 'Outfit', sans-serif;
             font-size: 1.05rem;
@@ -222,7 +222,7 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(rgba(255,255,255,0.1), transparent);
+            background: linear-gradient(rgba(0,0,0,0.05), transparent);
             opacity: 0;
             transition: opacity 0.3s;
         }
@@ -232,10 +232,10 @@
         }
 
         button.btn:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.06);
+            border-color: rgba(0, 0, 0, 0.15);
             transform: scale(1.02);
-            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
         }
 
         /* Specific Button Types */
@@ -258,6 +258,7 @@
             display: flex;
             border-color: #fff;
             background: var(--primary);
+            color: white;
         }
 
         button.btn-primary:hover:not(:disabled) {
@@ -308,12 +309,12 @@
         .image-container {
             width: 100%;
             aspect-ratio: 16/10;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.05);
             border-radius: 16px;
             overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(0,0,0,0.05);
             position: relative;
-            box-shadow: inset 0 4px 20px rgba(0,0,0,0.5);
+            box-shadow: inset 0 4px 20px rgba(0,0,0,0.05);
         }
 
         #test-image {
@@ -339,13 +340,13 @@
             display: inline-flex;
             align-items: center;
             padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             border-radius: 999px;
             font-size: 0.95rem;
             font-weight: 500;
             color: var(--text-light);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
         .status-dot {
@@ -399,36 +400,36 @@
         }
 
         .log-box {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 12px;
             padding: 1rem 1.25rem;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 0.85rem;
             height: 200px; /* Taller */
             overflow-y: auto;
-            color: #34d399; /* Green text for Matrix feel */
+            color: #059669; /* Darker green text */
             display: flex;
             flex-direction: column;
             gap: 0.4rem;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
         }
 
         .log-box::-webkit-scrollbar {
             width: 6px;
         }
         .log-box::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.05);
             border-radius: 4px;
         }
         .log-box::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.15);
             border-radius: 4px;
         }
 
         .log-entry {
             line-height: 1.4;
-            border-bottom: 1px dotted rgba(255,255,255,0.1);
+            border-bottom: 1px dotted rgba(0,0,0,0.1);
             padding-bottom: 0.4rem;
         }
         
@@ -438,9 +439,9 @@
             margin-right: 0.5rem;
         }
 
-        .log-entry.error { color: #ef4444; }
-        .log-entry.success { color: #a78bfa; font-weight: 600; }
-        .log-entry.info { color: #60a5fa; }
+        .log-entry.error { color: #dc2626; }
+        .log-entry.success { color: #6d28d9; font-weight: 600; }
+        .log-entry.info { color: #2563eb; }
 
         .log-entry:last-child {
             border-bottom: none;
