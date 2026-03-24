@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pose Detection Lab · Practical 6</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.20.0/dist/tf-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.20.0/dist/tf-converter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.20.0/dist/tf-backend-webgl.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="shell">
+
+  <!-- ══ TOP BAR ══ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-dot"></div>
+      <span class="brand-tag">ML LAB</span>
+      <span class="brand-sep">·</span>
+      <span class="brand-title">POSE DETECTION</span>
+      <span class="brand-ver">PRACTICAL 6</span>
+    </div>
+
+    <div class="topbar-center">
+      <div class="detected-pose" id="detected-pose">
+        <span class="dp-icon" id="dp-icon">—</span>
+        <div class="dp-text">
+          <div class="dp-name" id="dp-name">NO POSE</div>
+          <div class="dp-sub" id="dp-sub">awaiting camera</div>
+        </div>
+        <div class="dp-bar-wrap"><div class="dp-bar" id="dp-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="stat-chip" id="chip-fps">
+        <span class="chip-label">FPS</span>
+        <span class="chip-val" id="fps-val">--</span>
+      </div>
+      <div class="stat-chip" id="chip-kp">
+        <span class="chip-label">KP</span>
+        <span class="chip-val" id="kp-val">0/17</span>
+      </div>
+      <div class="stat-chip" id="chip-conf">
+        <span class="chip-label">CONF</span>
+        <span class="chip-val" id="conf-chip">--%</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ BODY ══ -->
+  <div class="body-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar left-sidebar">
+
+      <!-- System Controls -->
+      <div class="card" id="card-system">
+        <div class="card-head">
+          <span class="card-title">SYSTEM</span>
+          <span class="status-pill" id="status-pill">IDLE</span>
+        </div>
+        <div class="control-btns">
+          <button class="cbtn cbtn-green" id="btn-start" disabled>
+            <svg viewBox="0 0 16 16"><polygon points="3,1 14,8 3,15"/></svg>
+            START
+          </button>
+          <button class="cbtn cbtn-red" id="btn-stop" disabled>
+            <svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1"/></svg>
+            STOP
+          </button>
+        </div>
+        <div class="status-bar" id="status-bar">
+          <div class="sb-dot" id="sb-dot"></div>
+          <span id="status-text">Initialising model…</span>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="card">
+        <div class="card-head"><span class="card-title">SETTINGS</span></div>
+
+        <div class="field">
+          <div class="field-label">Confidence <span class="field-val" id="conf-val">0.35</span></div>
+          <input type="range" class="range-inp" id="conf-slider" min="0.1" max="0.9" step="0.05" value="0.35"/>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Skeleton thickness <span class="field-val" id="thick-val">3px</span></div>
+          <input type="range" class="range-inp" id="thick-slider" min="1" max="8" step="1" value="3"/>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Point size <span class="field-val" id="pt-val">5px</span></div>
+          <input type="range" class="range-inp" id="pt-slider" min="2" max="12" step="1" value="5"/>
+        </div>
+
+        <div class="toggles">
+          <label class="tog-row">
+            <span>Mirror</span>
+            <div class="tog"><input type="checkbox" id="tog-mirror" checked/><span></span></div>
+          </label>
+          <label class="tog-row">
+            <span>Skeleton</span>
+            <div class="tog"><input type="checkbox" id="tog-skel" checked/><span></span></div>
+          </label>
+          <label class="tog-row">
+            <span>Labels</span>
+            <div class="tog"><input type="checkbox" id="tog-labels"/><span></span></div>
+          </label>
+          <label class="tog-row">
+            <span>Heatmap</span>
+            <div class="tog"><input type="checkbox" id="tog-heat"/><span></span></div>
+          </label>
+        </div>
+
+        <div class="field" style="margin-top:10px">
+          <div class="field-label">Color theme</div>
+          <div class="theme-btns">
+            <button class="theme-btn active" data-theme="neon" title="Neon">🔵</button>
+            <button class="theme-btn" data-theme="fire" title="Fire">🔴</button>
+            <button class="theme-btn" data-theme="matrix" title="Matrix">🟢</button>
+            <button class="theme-btn" data-theme="gold" title="Gold">🟡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screenshot -->
+      <div class="card">
+        <div class="card-head"><span class="card-title">CAPTURE</span></div>
+        <button class="cbtn cbtn-blue" id="btn-snapshot" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          SNAPSHOT
+        </button>
+        <div id="snapshot-preview" class="snap-preview"></div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN VIDEO -->
+    <main class="video-main">
+      <div class="video-wrap" id="video-wrap">
+        <!-- corners -->
+        <i class="brk brk-tl"></i><i class="brk brk-tr"></i>
+        <i class="brk brk-bl"></i><i class="brk brk-br"></i>
+
+        <!-- idle screen -->
+        <div class="idle-screen" id="idle-screen">
+          <div class="idle-figure">
+            <svg viewBox="0 0 100 140" fill="none" stroke="currentColor" stroke-linecap="round">
+              <circle cx="50" cy="18" r="12" stroke-width="2.5"/>
+              <line x1="50" y1="30" x2="50" y2="80" stroke-width="2.5"/>
+              <line x1="50" y1="50" x2="22" y2="65" stroke-width="2.5"/>
+              <line x1="50" y1="50" x2="78" y2="65" stroke-width="2.5"/>
+              <line x1="50" y1="80" x2="32" y2="115" stroke-width="2.5"/>
+              <line x1="50" y1="80" x2="68" y2="115" stroke-width="2.5"/>
+            </svg>
+          </div>
+          <p class="idle-title">READY TO DETECT</p>
+          <p class="idle-sub">Stand 2–3 metres from camera<br>for best full-body detection</p>
+        </div>
+
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+
+        <!-- scan line -->
+        <div class="scanline" id="scanline"></div>
+
+        <!-- live badge -->
+        <div class="live-badge" id="live-badge">
+          <span class="live-dot"></span> LIVE
+        </div>
+      </div>
+
+      <!-- Pose hint bar below video -->
+      <div class="hint-bar" id="hint-bar">
+        <div class="hint-item" id="hint-distance">📏 Stand 2–3 m from camera</div>
+        <div class="hint-item" id="hint-light">💡 Ensure good lighting</div>
+        <div class="hint-item" id="hint-model">🤖 MoveNet Lightning (COCO)</div>
+      </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="sidebar right-sidebar">
+
+      <!-- Pose Stats -->
+      <div class="card">
+        <div class="card-head"><span class="card-title">POSE STATS</span></div>
+        <div class="pose-stats" id="pose-stats"></div>
+      </div>
+
+      <!-- Pose History -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">HISTORY</span>
+          <button class="micro-btn" id="btn-clear-hist">CLEAR</button>
+        </div>
+        <div class="hist-list" id="hist-list">
+          <span class="empty-hint">no detections yet</span>
+        </div>
+      </div>
+
+      <!-- Keypoints -->
+      <div class="card">
+        <div class="card-head"><span class="card-title">KEYPOINTS</span></div>
+        <div class="kp-table" id="kp-table"></div>
+      </div>
+
+    </aside>
+  </div>
+
+  <footer class="footer-bar">
+    MoveNet Lightning · COCO pretrained · TF.js v4.20 · WebGL · <span id="footer-time"></span>
+  </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
