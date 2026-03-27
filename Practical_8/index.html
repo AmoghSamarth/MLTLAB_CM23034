@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Practical 8 — Transfer Learning with MobileNet</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
+
+<!-- TensorFlow.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<!-- MobileNet pretrained model -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<!-- KNN Classifier for retraining -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.4/dist/knn-classifier.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #111827;
+    --border: #1e2d40;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #7c3aed;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --success: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --radius: 12px;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --log-bg: #070b14;
+    --class-row-bg: rgba(255,255,255,.03);
+    --prog-track: rgba(255,255,255,.08);
+    --h1-color: #fff;
+  }
+
+  :root.light {
+    --bg: #f0f4f8;
+    --panel: #ffffff;
+    --border: #d1dde8;
+    --accent: #0077aa;
+    --accent2: #ff6b35;
+    --accent3: #6d28d9;
+    --text: #1e293b;
+    --muted: #64748b;
+    --success: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --log-bg: #e8edf3;
+    --class-row-bg: rgba(0,0,0,.03);
+    --prog-track: rgba(0,0,0,.08);
+    --h1-color: #0f172a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { transition: background .35s, color .35s; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(0,229,255,.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 10% 80%, rgba(124,58,237,.08) 0%, transparent 60%);
+    transition: background .35s, color .35s;
+  }
+
+  :root.light body {
+    background-image:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(0,119,170,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 10% 80%, rgba(109,40,217,.06) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(22px, 4vw, 36px);
+    color: var(--h1-color);
+    line-height: 1.2;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: background .35s, border-color .35s;
+  }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+
+  /* Status bar */
+  #status-bar {
+    max-width: 1100px;
+    margin: 0 auto 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--warn);
+    flex-shrink: 0;
+    transition: background .4s;
+  }
+  .status-dot.ready { background: var(--success); animation: pulse 2s infinite; }
+  .status-dot.loading { background: var(--warn); animation: pulse .6s infinite; }
+  .status-dot.error { background: var(--danger); }
+
+  #status-text { color: var(--text); }
+
+  /* Video & Canvas */
+  .video-wrap {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4/3;
+    width: 100%;
+  }
+
+  video, #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 10px;
+  }
+
+  video { object-fit: cover; }
+
+  #overlay { pointer-events: none; }
+
+  .corner { position: absolute; width: 18px; height: 18px; border-color: var(--accent); border-style: solid; border-width: 0; }
+  .corner.tl { top: 8px; left: 8px; border-top-width: 2px; border-left-width: 2px; }
+  .corner.tr { top: 8px; right: 8px; border-top-width: 2px; border-right-width: 2px; }
+  .corner.bl { bottom: 8px; left: 8px; border-bottom-width: 2px; border-left-width: 2px; }
+  .corner.br { bottom: 8px; right: 8px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    transition: all .2s;
+  }
+
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover:not(:disabled) { background: #33eeff; transform: translateY(-1px); }
+
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #f87171; }
+
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #34d399; }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+  /* Category row */
+  .classes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .class-row {
+    display: grid;
+    grid-template-columns: 130px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--class-row-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color .2s, background .35s;
+  }
+
+  .class-row:hover { border-color: rgba(0,229,255,.3); }
+
+  .class-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .class-color {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sample-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--prog-track);
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .4s;
+  }
+
+  /* Prediction display */
+  .pred-box {
+    background: rgba(0,229,255,.05);
+    border: 1px solid rgba(0,229,255,.2);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+
+  .pred-label {
+    font-family: var(--mono);
+    font-size: 28px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .pred-conf {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .prob-bars { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+  .prob-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .prob-row .lbl { font-family: var(--mono); width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prob-track { flex: 1; height: 6px; background: var(--prog-track); border-radius: 3px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+  .prob-val { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 42px; text-align: right; }
+
+  /* Controls row */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+  /* Log */
+  #log {
+    background: var(--log-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    height: 120px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.7;
+    transition: background .35s, border-color .35s;
+  }
+
+  #log .entry { color: var(--muted); }
+  #log .entry.info { color: var(--accent); }
+  #log .entry.ok { color: var(--success); }
+  #log .entry.warn { color: var(--warn); }
+  #log .entry.err { color: var(--danger); }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+  }
+
+  /* Mobile net info */
+  .info-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    background: rgba(124,58,237,.15);
+    border: 1px solid rgba(124,58,237,.3);
+    color: #a78bfa;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+
+  /* Hidden canvas for capture */
+  #capture-canvas { display: none; }
+
+  /* ── Theme toggle ── */
+  .theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 6px 12px 6px 8px;
+    cursor: pointer;
+    transition: background .35s, border-color .35s, box-shadow .2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,.2);
+    user-select: none;
+  }
+  .theme-toggle:hover { box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+
+  .toggle-icon { font-size: 16px; line-height: 1; transition: transform .4s; }
+  :root.light .toggle-icon { transform: rotate(180deg); }
+
+  .toggle-track {
+    width: 34px; height: 18px;
+    border-radius: 9px;
+    background: var(--muted);
+    position: relative;
+    transition: background .3s;
+    flex-shrink: 0;
+  }
+  :root.light .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+  :root.light .toggle-thumb { transform: translateX(16px); }
+
+  .toggle-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    letter-spacing: .06em;
+    transition: color .35s;
+  }
+
+  /* Select dropdown light mode */
+  :root.light select {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+</style>
+
+  /* Cam off placeholder */
+  .cam-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .cam-placeholder i { font-size: 32px; color: #1e2d40; }
+</style>
+</head>
+<body>
+
+<!-- Theme Toggle -->
+<button class="theme-toggle" id="theme-toggle" title="Toggle light/dark theme">
+  <span class="toggle-icon" id="toggle-icon">🌙</span>
+  <div class="toggle-track">
+    <div class="toggle-thumb"></div>
+  </div>
+  <span class="toggle-label" id="toggle-label">DARK</span>
+</button>
+
+<header>
+  <div class="badge">Practical 8 · MLT Lab</div>
+  <h1>Transfer Learning with <span>MobileNet</span></h1>
+  <p class="subtitle">Retrain a pretrained CNN for custom categories using KNN + feature extraction · TensorFlow.js</p>
+</header>
+
+<!-- Status Bar -->
+<div id="status-bar" style="max-width:1100px;margin:0 auto 20px;">
+  <div class="status-dot loading" id="sdot"></div>
+  <span id="status-text">Loading TensorFlow.js & MobileNet model…</span>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT: Camera + Capture -->
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title"><div class="dot"></div> Live Camera</div>
+      <div class="video-wrap" id="video-wrap">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="cam-placeholder" id="cam-placeholder">
+          <i class="fa-solid fa-camera-slash"></i>
+          <span>Camera not started</span>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn btn-primary" id="btn-cam">▶ Start Camera</button>
+        <button class="btn btn-outline" id="btn-predict" disabled>⚡ Live Predict</button>
+        <button class="btn btn-danger" id="btn-reset" disabled>✕ Reset Model</button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="card-title">Console Log</div>
+      <div id="log"><div class="entry info">[INIT] Loading MobileNet…</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Training + Prediction -->
+  <div>
+    <!-- Training -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title"><div class="dot"></div> Training Samples</div>
+      <div class="info-chip">🧠 MobileNet v2 — Feature Extractor + KNN Head</div>
+
+      <p class="section-label">Custom Categories (Fruits)</p>
+      <div class="classes-grid" id="classes-grid">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="controls" style="margin-top:14px;">
+        <button class="btn btn-success" id="btn-train" disabled>▲ Add Sample</button>
+        <select id="class-select" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:12px;">
+          <!-- Populated by JS -->
+        </select>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;">Add ≥5 samples per class, then click Live Predict.</p>
+    </div>
+
+    <!-- Prediction -->
+    <div class="card">
+      <div class="card-title"><div class="dot"></div> Prediction Output</div>
+      <div id="pred-output">
+        <div style="color:var(--muted);font-size:13px;">No prediction yet. Train at least one class and start prediction.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<canvas id="capture-canvas"></canvas>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+const CLASSES = [
+  { name: 'Apple',  color: '#ef4444' },
+  { name: 'Banana', color: '#f59e0b' },
+  { name: 'Orange', color: '#f97316' },
+  { name: 'Grape',  color: '#8b5cf6' },
+  { name: 'Mango',  color: '#10b981' },
+];
+
+// ─── STATE ─────────────────────────────────────────────────
+let net = null;           // MobileNet model
+let classifier = null;    // KNN classifier
+let stream = null;        // Camera stream
+let predicting = false;   // Prediction loop active
+let sampleCounts = {};    // { className: count }
+
+CLASSES.forEach(c => sampleCounts[c.name] = 0);
+
+// ─── DOM REFS ──────────────────────────────────────────────
+const video       = document.getElementById('video');
+const overlay     = document.getElementById('overlay');
+const ctx         = overlay.getContext('2d');
+const statusDot   = document.getElementById('sdot');
+const statusText  = document.getElementById('status-text');
+const logEl       = document.getElementById('log');
+const btnCam      = document.getElementById('btn-cam');
+const btnPredict  = document.getElementById('btn-predict');
+const btnReset    = document.getElementById('btn-reset');
+const btnTrain    = document.getElementById('btn-train');
+const classSelect = document.getElementById('class-select');
+const predOutput  = document.getElementById('pred-output');
+const camPH       = document.getElementById('cam-placeholder');
+const capCanvas   = document.getElementById('capture-canvas');
+
+// ─── LOGGER ────────────────────────────────────────────────
+function log(msg, type = 'entry') {
+  const d = document.createElement('div');
+  d.className = `entry ${type}`;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ─── STATUS ────────────────────────────────────────────────
+function setStatus(msg, state = 'loading') {
+  statusText.textContent = msg;
+  statusDot.className = 'status-dot ' + state;
+}
+
+// ─── BUILD UI ──────────────────────────────────────────────
+function buildClassesGrid() {
+  const grid = document.getElementById('classes-grid');
+  grid.innerHTML = '';
+  CLASSES.forEach(cls => {
+    const row = document.createElement('div');
+    row.className = 'class-row';
+    row.id = `row-${cls.name}`;
+    row.innerHTML = `
+      <div class="class-name">
+        <div class="class-color" style="background:${cls.color}"></div>
+        ${cls.name}
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="prog-${cls.name}" style="width:0%;background:${cls.color}"></div>
+      </div>
+      <div class="sample-count" id="cnt-${cls.name}">0 samples</div>
+    `;
+    grid.appendChild(row);
+
+    const opt = document.createElement('option');
+    opt.value = cls.name;
+    opt.textContent = cls.name;
+    classSelect.appendChild(opt);
+  });
+}
+
+function updateCounts() {
+  const maxSamples = 20;
+  CLASSES.forEach(cls => {
+    const cnt = sampleCounts[cls.name];
+    document.getElementById(`cnt-${cls.name}`).textContent = `${cnt} sample${cnt !== 1 ? 's' : ''}`;
+    document.getElementById(`prog-${cls.name}`).style.width = `${Math.min(100, (cnt / maxSamples) * 100)}%`;
+  });
+}
+
+// ─── LOAD MODEL ────────────────────────────────────────────
+async function loadModel() {
+  try {
+    log('Loading MobileNet pretrained model from CDN…', 'info');
+    net = await mobilenet.load({ version: 2, alpha: 1.0 });
+    classifier = knnClassifier.create();
+    log('MobileNet v2 loaded successfully!', 'ok');
+    setStatus('MobileNet ready — Start camera to begin training', 'ready');
+    btnCam.disabled = false;
+  } catch (e) {
+    log('Failed to load model: ' + e.message, 'err');
+    setStatus('Model load failed. Check internet connection.', 'error');
+  }
+}
+
+// ─── CAMERA ────────────────────────────────────────────────
+btnCam.addEventListener('click', async () => {
+  if (stream) {
+    stopCamera();
+    return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    video.srcObject = stream;
+    await new Promise(r => video.onloadedmetadata = r);
+    await video.play();
+
+    camPH.style.display = 'none';
+    btnCam.textContent = '■ Stop Camera';
+    btnCam.className = 'btn btn-danger';
+    btnTrain.disabled = false;
+    btnReset.disabled = false;
+
+    // Sync overlay size
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
+
+    log('Camera started.', 'ok');
+    setStatus('Camera active — select a class and add samples', 'ready');
+  } catch (e) {
+    log('Camera error: ' + e.message, 'err');
+    setStatus('Camera access denied', 'error');
+  }
+});
+
+function stopCamera() {
+  if (predicting) togglePredict();
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  camPH.style.display = 'flex';
+  btnCam.textContent = '▶ Start Camera';
+  btnCam.className = 'btn btn-primary';
+  btnTrain.disabled = true;
+  btnPredict.disabled = true;
+  log('Camera stopped.', 'warn');
+  setStatus('Camera stopped', 'loading');
+}
+
+// ─── ADD TRAINING SAMPLE ───────────────────────────────────
+btnTrain.addEventListener('click', async () => {
+  if (!net || !stream) return;
+  const className = classSelect.value;
+
+  // Draw frame to offscreen canvas for feature extraction
+  capCanvas.width = video.videoWidth;
+  capCanvas.height = video.videoHeight;
+  capCanvas.getContext('2d').drawImage(video, 0, 0);
+
+  // Flash effect
+  flashOverlay();
+
+  const img = tf.browser.fromPixels(capCanvas);
+  const activation = net.infer(img, true); // true = get embeddings
+  classifier.addExample(activation, className);
+  img.dispose();
+  activation.dispose();
+
+  sampleCounts[className]++;
+  updateCounts();
+
+  const total = Object.values(sampleCounts).reduce((a, b) => a + b, 0);
+  log(`Sample added for "${className}" (total: ${sampleCounts[className]})`, 'ok');
+
+  // Enable predict if at least 1 class has samples
+  const trainedClasses = CLASSES.filter(c => sampleCounts[c.name] > 0).length;
+  if (trainedClasses >= 1) {
+    btnPredict.disabled = false;
+  }
+});
+
+function flashOverlay() {
+  ctx.fillStyle = 'rgba(0,229,255,0.3)';
+  ctx.fillRect(0, 0, overlay.width, overlay.height);
+  setTimeout(() => ctx.clearRect(0, 0, overlay.width, overlay.height), 150);
+}
+
+// ─── PREDICT TOGGLE ────────────────────────────────────────
+btnPredict.addEventListener('click', togglePredict);
+
+function togglePredict() {
+  predicting = !predicting;
+  if (predicting) {
+    btnPredict.textContent = '⏹ Stop Predict';
+    btnPredict.className = 'btn btn-danger';
+    log('Prediction started.', 'info');
+    predictLoop();
+  } else {
+    btnPredict.textContent = '⚡ Live Predict';
+    btnPredict.className = 'btn btn-outline';
+    log('Prediction stopped.', 'warn');
+  }
+}
+
+async function predictLoop() {
+  if (!predicting) return;
+  if (!stream || classifier.getNumClasses() === 0) {
+    requestAnimationFrame(predictLoop);
+    return;
+  }
+
+  capCanvas.width = video.videoWidth;
+  capCanvas.height = video.videoHeight;
+  capCanvas.getContext('2d').drawImage(video, 0, 0);
+
+  const img = tf.browser.fromPixels(capCanvas);
+  const activation = net.infer(img, true);
+  const result = await classifier.predictClass(activation);
+  img.dispose();
+  activation.dispose();
+
+  renderPrediction(result);
+  drawLabelOnOverlay(result);
+
+  setTimeout(predictLoop, 200);
+}
+
+// ─── RENDER PREDICTION ─────────────────────────────────────
+function renderPrediction(result) {
+  const label = result.label;
+  const probs = result.confidences;
+  const conf  = (probs[label] * 100).toFixed(1);
+  const classColor = CLASSES.find(c => c.name === label)?.color || '#00e5ff';
+
+  let barsHTML = '';
+  const sorted = Object.entries(probs).sort((a, b) => b[1] - a[1]);
+  sorted.forEach(([cls, p]) => {
+    const pct = (p * 100).toFixed(1);
+    const col = CLASSES.find(c => c.name === cls)?.color || '#64748b';
+    barsHTML += `
+      <div class="prob-row">
+        <div class="lbl" style="color:${col}">${cls}</div>
+        <div class="prob-track">
+          <div class="prob-fill" style="width:${pct}%;background:${col}"></div>
+        </div>
+        <div class="prob-val">${pct}%</div>
+      </div>`;
+  });
+
+  predOutput.innerHTML = `
+    <div class="pred-box" style="border-color:${classColor}40;background:${classColor}08">
+      <div class="pred-label" style="color:${classColor}">${label}</div>
+      <div class="pred-conf">Confidence: <strong>${conf}%</strong></div>
+    </div>
+    <div class="prob-bars">${barsHTML}</div>
+  `;
+}
+
+function drawLabelOnOverlay(result) {
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  const label = result.label;
+  const conf  = (result.confidences[label] * 100).toFixed(1);
+  const col   = CLASSES.find(c => c.name === label)?.color || '#00e5ff';
+
+  ctx.fillStyle = col + 'cc';
+  ctx.fillRect(8, 8, 200, 36);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 15px Space Mono, monospace';
+  ctx.fillText(`${label} · ${conf}%`, 16, 30);
+}
+
+// ─── RESET ─────────────────────────────────────────────────
+btnReset.addEventListener('click', () => {
+  if (predicting) togglePredict();
+  classifier.clearAllClasses();
+  CLASSES.forEach(c => sampleCounts[c.name] = 0);
+  updateCounts();
+  predOutput.innerHTML = '<div style="color:var(--muted);font-size:13px;">Prediction cleared. Re-train to begin.</div>';
+  btnPredict.disabled = true;
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  log('Classifier reset. All samples cleared.', 'warn');
+  setStatus('Model reset — add new training samples', 'ready');
+});
+
+// ─── THEME TOGGLE ──────────────────────────────────────────
+const themeBtn   = document.getElementById('theme-toggle');
+const themeIcon  = document.getElementById('toggle-icon');
+const themeLabel = document.getElementById('toggle-label');
+let isLight = false;
+
+themeBtn.addEventListener('click', () => {
+  isLight = !isLight;
+  document.documentElement.classList.toggle('light', isLight);
+  themeIcon.textContent  = isLight ? '☀️' : '🌙';
+  themeLabel.textContent = isLight ? 'LIGHT' : 'DARK';
+  // Persist preference
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+});
+
+// Restore saved preference
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') {
+    isLight = true;
+    document.documentElement.classList.add('light');
+    themeIcon.textContent  = '☀️';
+    themeLabel.textContent = 'LIGHT';
+  }
+})();
+
+// ─── INIT ──────────────────────────────────────────────────
+buildClassesGrid();
+updateCounts();
+btnCam.disabled = true;
+btnTrain.disabled = true;
+btnPredict.disabled = true;
+btnReset.disabled = true;
+
+window.addEventListener('load', loadModel);
+</script>
+</body>
+</html>
