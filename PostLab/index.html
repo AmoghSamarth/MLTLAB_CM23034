@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SilentSpeak — Sign Language & Lip Reading AI</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- ══════════ LOADING SCREEN ══════════ -->
+<div id="loader" class="loader">
+  <div class="loader-bg">
+    <div class="lb-orb a"></div>
+    <div class="lb-orb b"></div>
+    <div class="lb-orb c"></div>
+  </div>
+  <div class="loader-content">
+    <div class="loader-logo">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <defs>
+          <linearGradient id="llg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6EE7B7"/>
+            <stop offset="0.5" stop-color="#3B82F6"/>
+            <stop offset="1" stop-color="#8B5CF6"/>
+          </linearGradient>
+        </defs>
+        <!-- Hand -->
+        <path d="M20 44 L20 24 Q20 21 23 21 Q26 21 26 24 L26 34" stroke="url(#llg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M26 32 Q26 28 29 28 Q32 28 32 32 L32 36" stroke="url(#llg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M32 34 Q32 30 35 30 Q38 30 38 34 L38 38" stroke="url(#llg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M38 36 Q38 33 41 33 Q44 33 44 36 L44 44" stroke="url(#llg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M20 44 Q20 50 26 50 L40 50 Q46 50 44 44" stroke="url(#llg)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <!-- Lips -->
+        <ellipse cx="32" cy="14" rx="10" ry="5" stroke="url(#llg)" stroke-width="2" fill="none"/>
+        <path d="M22 14 Q27 17 32 14 Q37 17 42 14" stroke="url(#llg)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </svg>
+      <div class="loader-rings">
+        <div class="lr lr1"></div>
+        <div class="lr lr2"></div>
+        <div class="lr lr3"></div>
+      </div>
+    </div>
+    <h1 class="loader-title">SilentSpeak</h1>
+    <p class="loader-sub">AI-Powered Communication Bridge</p>
+    <div class="loader-bar-wrap">
+      <div class="loader-bar" id="ldrBar"></div>
+      <div class="loader-bar-glow" id="ldrGlow"></div>
+    </div>
+    <p class="loader-status" id="ldrStatus">Initializing TensorFlow.js…</p>
+    <div class="loader-steps" id="ldrSteps">
+      <div class="lstep" id="ls0">◦ TensorFlow.js</div>
+      <div class="lstep" id="ls1">◦ Hand Pose Model</div>
+      <div class="lstep" id="ls2">◦ Face Mesh Model</div>
+      <div class="lstep" id="ls3">◦ Sign Language Engine</div>
+      <div class="lstep" id="ls4">◦ Lip Reading Engine</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MAIN APP ══════════ -->
+<div id="app" class="app hidden">
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
+          <defs><linearGradient id="nlg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse"><stop stop-color="#6EE7B7"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs>
+          <path d="M20 44 L20 24 Q20 21 23 21 Q26 21 26 24 L26 34" stroke="url(#nlg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M26 32 Q26 28 29 28 Q32 28 32 32 L32 36" stroke="url(#nlg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M32 34 Q32 30 35 30 Q38 30 38 34 L38 38" stroke="url(#nlg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M38 36 Q38 33 41 33 Q44 33 44 36 L44 44" stroke="url(#nlg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M20 44 Q20 50 26 50 L40 50 Q46 50 44 44" stroke="url(#nlg)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <ellipse cx="32" cy="13" rx="9" ry="4.5" stroke="url(#nlg)" stroke-width="2.5" fill="none"/>
+        </svg>
+        <span class="brand-name">SilentSpeak</span>
+        <span class="brand-tag">AI</span>
+      </div>
+      <nav class="nav-links">
+        <a class="nl active" onclick="showPage('demo')">Demo</a>
+        <a class="nl" onclick="showPage('about')">About</a>
+        <a class="nl" onclick="showPage('gestures')">Gestures</a>
+        <a class="nl" onclick="showPage('docs')">Docs</a>
+      </nav>
+      <div class="nav-right">
+        <!-- THEME TOGGLE -->
+        <div class="theme-toggle-wrap" title="Toggle theme">
+          <span class="tt-icon">☀️</span>
+          <label class="theme-toggle">
+            <input type="checkbox" id="themeCheck" onchange="toggleTheme()"/>
+            <span class="tt-track">
+              <span class="tt-thumb">
+                <span class="tt-thumb-inner"></span>
+              </span>
+            </span>
+          </label>
+          <span class="tt-icon">🌙</span>
+        </div>
+        <div class="nav-status">
+          <div class="ns-dot" id="nsDot"></div>
+          <span class="ns-label" id="nsLabel">Offline</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ PAGE: DEMO ═══ -->
+  <main class="page active" id="page-demo">
+
+    <!-- HERO STRIP -->
+    <div class="hero-strip">
+      <div class="hs-inner flex-row">
+        <div class="hs-text">
+          <h1 class="hs-title">Bridging Silence<br/><span class="grad">with Intelligence</span></h1>
+          <p class="hs-sub">Real-time Sign Language & Lip Reading — powered by MediaPipe + TensorFlow.js, running entirely in your browser.</p>
+          <div class="hs-chips">
+            <div class="chip emerald">✋ ASL Recognition</div>
+            <div class="chip sapphire">👄 Lip Reading</div>
+            <div class="chip violet">⚡ Real-time</div>
+            <div class="chip amber">🔒 On-Device</div>
+          </div>
+        </div>
+        
+        <!-- Interactive Animated Mechanical Hand -->
+        <div class="bot-hand-track">
+          <div class="bot-hand-wrap" title="AI Gesture Model">
+            <div class="bot-hand">
+              <div class="bh-wrist-base"></div>
+              <div class="bh-wrist"></div>
+              <div class="bh-palm"></div>
+              <div class="bh-finger bh-thumb"></div>
+              <div class="bh-finger bh-index"></div>
+              <div class="bh-finger bh-middle"></div>
+              <div class="bh-finger bh-ring"></div>
+              <div class="bh-finger bh-pinky"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN DEMO AREA -->
+    <div class="demo-layout">
+
+      <!-- LEFT: CAMERA + CONTROLS -->
+      <div class="cam-section">
+        <div class="cam-card">
+          <div class="cam-header">
+            <span class="cam-title">Live Camera Feed</span>
+            <div class="cam-badges">
+              <span class="cbadge" id="fpsDisplay">-- FPS</span>
+              <span class="cbadge" id="handsDisplay">0 Hands</span>
+              <span class="cbadge active" id="modeDisplay">Sign Mode</span>
+              <button class="cbadge btn-icon" id="btnFullscreen" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+            </div>
+          </div>
+          <div class="cam-viewport">
+            <video id="videoEl" autoplay playsinline muted></video>
+            <canvas id="overlayCanvas"></canvas>
+            <!-- Landmark overlays -->
+            <div class="cam-overlays">
+              <div class="co-tl"></div><div class="co-tr"></div>
+              <div class="co-bl"></div><div class="co-br"></div>
+            </div>
+            <!-- Offline placeholder -->
+            <div class="cam-placeholder" id="camPh">
+              <div class="cp-icon">
+                <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
+                  <rect x="4" y="16" width="56" height="40" rx="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <circle cx="32" cy="36" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <circle cx="32" cy="36" r="4" fill="currentColor" opacity=".3"/>
+                  <path d="M22 16 L26 10 L38 10 L42 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+                </svg>
+              </div>
+              <p class="cp-title">Camera Inactive</p>
+              <p class="cp-sub">Press Start to begin recognition</p>
+            </div>
+            <!-- Live detection badge -->
+            <div class="live-badge hidden" id="liveBadge">
+              <div class="lb-dot"></div> LIVE
+            </div>
+          </div>
+
+          <!-- MODE TOGGLE -->
+          <div class="mode-bar">
+            <button class="mode-btn active" id="modeSign" onclick="setMode('sign')">
+              <span>✋</span> Sign Language
+            </button>
+            <div class="mode-divider"></div>
+            <button class="mode-btn" id="modeLip" onclick="setMode('lip')">
+              <span>👄</span> Lip Reading
+            </button>
+            <div class="mode-divider"></div>
+            <button class="mode-btn" id="modeBoth" onclick="setMode('both')">
+              <span>⚡</span> Combined
+            </button>
+          </div>
+
+          <!-- START / STOP -->
+          <div class="cam-actions">
+            <button class="btn-start" id="btnStart" onclick="startRecognition()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Start Recognition
+            </button>
+            <button class="btn-stop hidden" id="btnStop" onclick="stopRecognition()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+              Stop
+            </button>
+            <button class="btn-clear" onclick="clearOutput()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- CONFIDENCE METERS -->
+        <div class="confidence-card">
+          <div class="cc-title">Model Confidence</div>
+          <div class="conf-row">
+            <span class="conf-label">✋ Sign Language</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar emerald" id="confSign" style="width:0%"></div>
+            </div>
+            <span class="conf-pct" id="confSignPct">0%</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-label">👄 Lip Reading</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar sapphire" id="confLip" style="width:0%"></div>
+            </div>
+            <span class="conf-pct" id="confLipPct">0%</span>
+          </div>
+          <div class="conf-row">
+            <span class="conf-label">🎯 Combined</span>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar violet" id="confCombined" style="width:0%"></div>
+            </div>
+            <span class="conf-pct" id="confCombPct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: OUTPUT PANEL -->
+      <div class="output-section">
+
+        <!-- LIVE PREDICTION -->
+        <div class="prediction-card">
+          <div class="pc-label">Current Detection</div>
+          <div class="pc-main" id="predMain">Waiting...</div>
+        </div>
+
+        <!-- TRANSCRIPT -->
+        <div class="transcript-card">
+          <div class="tc-header">
+            <span class="tc-title">Live Transcript</span>
+            <div class="tc-actions">
+              <button class="tc-btn" onclick="exportTranscript()" title="Export .txt">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="tc-btn" onclick="copyTranscript()" title="Copy">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              </button>
+              <button class="tc-btn" id="btnSpeak" onclick="speakTranscript()" title="Speak transcript">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+              </button>
+              <button class="tc-btn tc-btn-stop hidden" id="btnStopSpeak" onclick="stopSpeaking()" title="Stop speaking">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="transcript-body" id="transcriptBody">
+            <div class="tb-empty">
+              <div class="tbe-icon">💬</div>
+              <div>Transcript will appear here</div>
+            </div>
+          </div>
+          <div class="tc-footer">
+            <span class="tcf-words" id="wordCount">0 words</span>
+            <span class="tcf-time" id="sessionTime">0:00</span>
+          </div>
+        </div>
+
+        <!-- STATS GRID -->
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="sb-val" id="statSigns">0</div>
+            <div class="sb-label">Signs Detected</div>
+          </div>
+          <div class="stat-box">
+            <div class="sb-val" id="statWords">0</div>
+            <div class="sb-label">Words Read</div>
+          </div>
+          <div class="stat-box">
+            <div class="sb-val" id="statAcc">--%</div>
+            <div class="sb-label">Accuracy</div>
+          </div>
+          <div class="stat-box">
+            <div class="sb-val" id="statFps">0</div>
+            <div class="sb-label">Avg FPS</div>
+          </div>
+        </div>
+
+        <!-- SETTINGS & LOG ROW -->
+        <div class="settings-log-row">
+          <!-- SETTINGS -->
+          <div class="settings-card">
+            <div class="lc-title">Engine Settings</div>
+            <div class="settings-body">
+              <label class="setting-row">
+                <input type="checkbox" id="chkSentence" onchange="toggleSentenceBuilder()"/>
+                <span>Sentence Builder (Auto-punctuate)</span>
+              </label>
+              <label class="setting-row">
+                <input type="checkbox" id="chkSound" checked onchange="toggleSound()"/>
+                <span>Sound Feedback on Detection</span>
+              </label>
+              <div class="setting-row-slider">
+                <div class="srs-header"><span>Vote Window (Frames)</span><span id="vwVal">12</span></div>
+                <input type="range" id="slipVoteWindow" min="5" max="30" value="12" oninput="updateSettings()"/>
+              </div>
+              <div class="setting-row-slider">
+                <div class="srs-header"><span>Min Confidence (%)</span><span id="mcVal">70</span></div>
+                <input type="range" id="slipMinConf" min="50" max="95" value="70" oninput="updateSettings()"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- INLINE QUICK GESTURES (Replacing Log) -->
+          <div class="card gesture-card-inline" style="display:flex; flex-direction:column; overflow:hidden; flex: 1; border-radius: var(--r); background: var(--surf); border: 1px solid var(--bdr); padding: 1.5rem;">
+            <div class="lc-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom: 1px solid var(--bdr); padding-bottom: 0.5rem;">
+              <span style="font-weight:700; color:var(--txt);">📖 Quick Gestures</span>
+              <div class="gesture-filter" id="demoGestureFilter" style="margin:0; display:flex; gap:0.25rem;">
+                <button class="gf-btn active" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="filterDemoGestures('all', this)">All</button>
+                <button class="gf-btn" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="filterDemoGestures('greetings', this)">Phrases</button>
+                <button class="gf-btn" style="padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="filterDemoGestures('alphabet', this)">A-Z</button>
+              </div>
+            </div>
+            <div id="demoGestureGrid" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:0.5rem; max-height: 280px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ PAGE: ABOUT ═══ -->
+  <main class="page" id="page-about">
+    <div class="page-inner">
+      <div class="pg-hero">
+        <div class="sec-label">About SilentSpeak</div>
+        <h2 class="pg-title">Breaking Communication<br/><span class="grad">Barriers with AI</span></h2>
+        <p class="pg-sub">SilentSpeak uses two state-of-the-art pre-trained models running entirely in your browser to translate sign language and lip movements into text in real time.</p>
+      </div>
+      <div class="about-grid">
+        <div class="about-card">
+          <div class="ac-icon emerald-bg">✋</div>
+          <h3>Sign Language Recognition</h3>
+          <p>Uses MediaPipe HandPose to extract 21 3D hand landmarks per frame, feeding them into a trained gesture classifier that maps hand shapes and movements to ASL signs and phrases.</p>
+          <div class="ac-tech">
+            <span>MediaPipe Hands</span><span>TF.js</span><span>LSTM</span>
+          </div>
+        </div>
+        <div class="about-card">
+          <div class="ac-icon sapphire-bg">👄</div>
+          <h3>Lip Reading AI</h3>
+          <p>MediaPipe FaceMesh extracts 478 facial landmarks with special focus on 40 lip landmarks. A sequence model reads lip shapes over time to predict spoken words without audio.</p>
+          <div class="ac-tech">
+            <span>FaceMesh</span><span>TF.js</span><span>GRU</span>
+          </div>
+        </div>
+        <div class="about-card">
+          <div class="ac-icon violet-bg">⚡</div>
+          <h3>Combined Fusion</h3>
+          <p>In Combined mode, both models run simultaneously. A confidence-weighted fusion layer picks the highest-certainty output, giving you the best of both worlds in one seamless stream.</p>
+          <div class="ac-tech">
+            <span>Dual Stream</span><span>Fusion Layer</span><span>WebGL</span>
+          </div>
+        </div>
+        <div class="about-card">
+          <div class="ac-icon amber-bg">🔒</div>
+          <h3>100% Private</h3>
+          <p>All inference runs locally in your browser using WebGL acceleration. No video, audio, or biometric data is ever sent to any server. Your communication stays yours.</p>
+          <div class="ac-tech">
+            <span>On-Device</span><span>WebGL</span><span>Zero Upload</span>
+          </div>
+        </div>
+      </div>
+      <div class="pipeline-section">
+        <div class="sec-label">How It Works</div>
+        <h3 class="pipe-title">The Recognition Pipeline</h3>
+        <div class="pipeline">
+          <div class="pipe-step"><div class="ps-num">01</div><div class="ps-icon">📷</div><div class="ps-label">Webcam Input</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="ps-num">02</div><div class="ps-icon">🦴</div><div class="ps-label">Landmark Extraction</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="ps-num">03</div><div class="ps-icon">🧠</div><div class="ps-label">Model Inference</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="ps-num">04</div><div class="ps-icon">📝</div><div class="ps-label">Text Output</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ PAGE: GESTURES ═══ -->
+  <main class="page" id="page-gestures">
+    <div class="page-inner">
+      <div class="pg-hero">
+        <div class="sec-label">Gesture Reference</div>
+        <h2 class="pg-title">Supported <span class="grad">Signs & Phrases</span></h2>
+        <p class="pg-sub">SilentSpeak currently recognizes these ASL signs and common phrases. Hold each sign steadily for ~1 second for best accuracy.</p>
+      </div>
+      <div class="gesture-filter">
+        <button class="gf-btn active" onclick="filterGestures('all', this)">All</button>
+        <button class="gf-btn" onclick="filterGestures('greetings', this)">Greetings</button>
+        <button class="gf-btn" onclick="filterGestures('basics', this)">Basics</button>
+        <button class="gf-btn" onclick="filterGestures('emotions', this)">Emotions</button>
+        <button class="gf-btn" onclick="filterGestures('questions', this)">Questions</button>
+        <button class="gf-btn" onclick="filterGestures('alphabet', this)">Alphabet (A-Z)</button>
+        <button class="gf-btn" onclick="filterGestures('phrases', this)">Smart Phrases</button>
+      </div>
+      <div class="gesture-grid" id="gestureGrid"></div>
+      <div class="lip-section">
+        <div class="sec-label">Lip Reading</div>
+        <h3 class="pipe-title">Recognized Words & Phrases</h3>
+        <div class="lip-grid" id="lipGrid"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ PAGE: DOCS ═══ -->
+  <main class="page" id="page-docs">
+    <div class="page-inner">
+      <div class="pg-hero">
+        <div class="sec-label">Documentation</div>
+        <h2 class="pg-title">How to Use <span class="grad">SilentSpeak</span></h2>
+      </div>
+      <div class="docs-layout">
+        <nav class="docs-nav">
+          <div class="dn-item active" onclick="scrollDoc('quickstart')">Quick Start</div>
+          <div class="dn-item" onclick="scrollDoc('sign')">Sign Language Guide</div>
+          <div class="dn-item" onclick="scrollDoc('lip')">Lip Reading Guide</div>
+          <div class="dn-item" onclick="scrollDoc('tips')">Tips & Tricks</div>
+          <div class="dn-item" onclick="scrollDoc('tech')">Tech Stack</div>
+        </nav>
+        <div class="docs-content" id="docsContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">SilentSpeak <span class="grad">AI</span></div>
+      <div class="footer-sub">Built with TensorFlow.js · MediaPipe · WebGL · Running 100% in your browser</div>
+      <div class="footer-chips">
+        <span>TF.js v4.10</span><span>MediaPipe Hands</span><span>FaceMesh</span><span>WebGL Backend</span>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /app -->
+
+<!-- MediaPipe Tasks Vision (WASM-based, fast, reliable) -->
+<script type="module">
+  import * as mpTasksVision from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm';
+  window.mpTasksVision = mpTasksVision;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js" crossorigin="anonymous"></script>
+<script src="app.js"></script>
+
+<!-- QUICK DICTIONARY SIDEBAR & FAB -->
+<button class="fab-btn hidden" id="btnQuickDict" onclick="document.getElementById('sideDict').classList.toggle('open')" title="Quick Gestures Reference">
+  <span style="font-size:1.2rem;">📖</span> Dictionary
+</button>
+<div id="sideDict" class="gesture-sidebar">
+  <div class="side-dict-header">
+    <h3 style="font-family: var(--font-logo); font-size:1.5rem; letter-spacing:-0.02em;">Gestures</h3>
+    <button class="side-dict-close" onclick="document.getElementById('sideDict').classList.remove('open')">&times;</button>
+  </div>
+  <div id="sideDictGrid" style="display:flex;flex-direction:column;gap:1rem;"></div>
+</div>
+<!-- NOTE: The 'fab-btn' and 'sideDict' are hidden, replaced by the inline dictionary on the Demo Page for extreme convenience. -->
+</body>
+</html>

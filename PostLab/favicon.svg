@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6EE7B7"/>
+      <stop offset="50%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="#0a0d12"/>
+  <!-- Hand -->
+  <path d="M30 68 L30 40 Q30 35 35 35 Q40 35 40 40 L40 52" stroke="url(#g)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M40 50 Q40 43 45 43 Q50 43 50 50 L50 55" stroke="url(#g)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M50 53 Q50 47 55 47 Q60 47 60 53 L60 58" stroke="url(#g)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M60 56 Q60 52 65 52 Q70 52 70 56 L70 68" stroke="url(#g)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M30 68 Q30 76 40 76 L62 76 Q72 76 70 68" stroke="url(#g)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Lips -->
+  <ellipse cx="50" cy="22" rx="16" ry="8" stroke="url(#g)" stroke-width="3" fill="none"/>
+  <path d="M34 22 Q42 27 50 22 Q58 27 66 22" stroke="url(#g)" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>
