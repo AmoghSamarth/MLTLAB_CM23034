@@ -1,74 +1,597 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="dark">
 <head>
-<title>MLT Lab</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLT Lab Practicals</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Dark Theme Variables */
+            --bg-dark: #0f111a;
+            --primary: #6366f1;
+            --secondary: #ec4899;
+            --accent: #14b8a6;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --blob-mix: blend-mode: screen;
+        }
 
-<style>
-    body {
-        margin: 0;
-        font-family: 'Segoe UI', sans-serif;
-        background: linear-gradient(135deg, #0f172a, #1e293b);
-        color: white;
-    }
+        [data-theme="light"] {
+            /* Light Theme Variables */
+            --bg-dark: #f8fafc;
+            --primary: #4f46e5;
+            --secondary: #db2777;
+            --accent: #0d9488;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --blob-mix: blend-mode: multiply;
+        }
 
-    h1 {
-        text-align: center;
-        margin-top: 40px;
-        font-size: 2.5rem;
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
 
-    .container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 25px;
-        padding: 50px;
-        max-width: 900px;
-        margin: auto;
-    }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
 
-    a {
-        display: block;
-        text-decoration: none;
-        color: white;
-        background: rgba(255, 255, 255, 0.08);
-        padding: 20px;
-        border-radius: 15px;
-        text-align: center;
-        font-size: 1.2rem;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-    }
+        /* Top Navigation Bar */
+        .top-bar {
+            width: 100%;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+            position: relative;
+        }
 
-    a:hover {
-        background: #38bdf8;
-        color: #0f172a;
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4);
-    }
+        /* Waving Man SVG Animation */
+        .waving-man {
+            width: 70px;
+            height: 70px;
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+        }
 
-    a:active {
-        transform: scale(0.95);
-    }
-</style>
+        .wave-arm {
+            transform-origin: 135px 150px;
+            animation: wave 2s infinite ease-in-out;
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(35deg); }
+        }
 
+        /* Theme Toggle Switch */
+        .theme-switch {
+            position: relative;
+            width: 74px;
+            height: 38px;
+        }
+        
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .theme-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 36px;
+            transition: .4s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .theme-slider::before {
+            content: "";
+            position: absolute;
+            height: 30px; 
+            width: 30px;
+            left: 3px; 
+            bottom: 3px;
+            background-color: var(--text-main);
+            border-radius: 50%;
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 2;
+        }
+        
+        input:checked + .theme-slider::before {
+            transform: translateX(36px);
+            background-color: var(--primary);
+        }
+        
+        .theme-icon { font-size: 1.1rem; z-index: 1; user-select: none; }
+
+        /* Animated Background Blobs */
+        .bg-blobs {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            filter: blur(120px);
+            opacity: 0.55;
+            mix-blend-mode: var(--blob-mix);
+            transition: opacity 0.5s;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            animation: float 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .blob-1 {
+            width: 60vh; height: 60vh;
+            background: var(--primary);
+            top: -10vh; left: -10vw;
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            width: 50vh; height: 50vh;
+            background: var(--secondary);
+            bottom: -15vh; right: -5vw;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 40vh; height: 40vh;
+            background: var(--accent);
+            top: 30%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(10vw, -10vh) scale(1.1); }
+            66% { transform: translate(-5vw, 15vh) scale(0.9); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        /* Header Styles */
+        header {
+            text-align: center;
+            margin-top: 1rem;
+            margin-bottom: 3rem;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 6vw, 4.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(to right, var(--text-main), var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            display: inline-block;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* 3D Wheel/Carousel */
+        .scene {
+            width: 300px;
+            height: 400px;
+            perspective: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .carousel {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: grab;
+        }
+
+        .carousel:active {
+            cursor: grabbing;
+        }
+
+        .card {
+            position: absolute;
+            width: 300px;
+            height: 400px;
+            left: 0;
+            top: 0;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: opacity 0.4s, filter 0.4s, box-shadow 0.4s;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            -webkit-user-drag: none;
+            user-select: none;
+        }
+
+        /* Fix links inside draggable */
+        .card * {
+            pointer-events: none;
+        }
+
+        /* Activate link only on active card */
+        .card.active {
+            pointer-events: auto;
+        }
+        .card.active * {
+            pointer-events: auto;
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 5px;
+            display: inline-block;
+            transform: translateZ(30px);
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+        }
+
+        .card-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transform: translateZ(20px);
+        }
+
+        .card-arrow {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(128,128,128,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .card.active:hover .card-arrow {
+            background: var(--text-main);
+            color: var(--bg-dark);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px var(--text-main);
+        }
+
+        .card-desc {
+            font-size: 1rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            transform: translateZ(10px);
+        }
+
+        /* Controls Navigation */
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 60px;
+            z-index: 20;
+            margin-bottom: 50px;
+        }
+
+        .nav-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.15);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Highlight special cards */
+        .card.pre { border-color: rgba(99, 102, 241, 0.5); }
+        .card.post { border-color: rgba(236, 72, 153, 0.5); }
+        
+        .card.active { border-color: var(--primary); box-shadow: 0 20px 50px rgba(99, 102, 241, 0.3); }
+
+    </style>
 </head>
-
 <body>
 
-<h1>MLT Lab Practicals</h1>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
 
-<div class="container">
-    <a href="Prelab/index.html">Prelab</a>
-    <a href="Practical_1/index.html">Practical 01</a>
-    <a href="Practical_2/index.html">Practical 02</a>
-    <a href="Practical_3/index.html">Practical 03</a>
-    <a href="Practical_04/index.html">Practical 04</a>
-    <a href="Practical_5/index.html">Practical 05</a>
-    <a href="Practical_6/index.html">Practical 06</a>
-    <a href="Practical_7/index.html">Practical 07</a>
-    <a href="Practical_8/index.html">Practical 08</a>
-    <a href="PostLab/index.html">PostLab</a>
-</div>
+    <!-- Top Bar: Waving Man & Theme Toggle -->
+    <div class="top-bar">
+        <div class="waving-man">
+            <svg viewBox="0 0 200 200" width="100%" height="100%">
+                <!-- Body -->
+                <path d="M 60,190 C 60,140 140,140 140,190 Z" fill="var(--primary)" />
+                <!-- Head -->
+                <circle cx="100" cy="80" r="35" fill="#fcd34d" />
+                <!-- Eyes -->
+                <circle cx="85" cy="75" r="4" fill="#1e293b" />
+                <circle cx="115" cy="75" r="4" fill="#1e293b" />
+                <!-- Glasses -->
+                <rect x="70" y="65" width="25" height="15" rx="5" fill="none" stroke="#1e293b" stroke-width="3"/>
+                <rect x="105" y="65" width="25" height="15" rx="5" fill="none" stroke="#1e293b" stroke-width="3"/>
+                <line x1="95" y1="72" x2="105" y2="72" stroke="#1e293b" stroke-width="3"/>
+                <!-- Smile -->
+                <path d="M 85,95 Q 100,110 115,95" fill="none" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+                <!-- Left Arm -->
+                <path d="M 65,150 Q 40,160 30,190" fill="none" stroke="var(--primary)" stroke-width="15" stroke-linecap="round"/>
+                <!-- Right Arm (Waving) -->
+                <g class="wave-arm">
+                    <path d="M 135,150 Q 160,120 170,80" fill="none" stroke="var(--primary)" stroke-width="15" stroke-linecap="round"/>
+                    <circle cx="170" cy="80" r="14" fill="#fcd34d" /> <!-- Hand -->
+                    <!-- Motion Lines -->
+                    <path d="M 185,60 Q 195,75 185,90" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M 195,65 Q 205,75 195,85" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+                </g>
+            </svg>
+        </div>
 
+        <label class="theme-switch">
+            <input type="checkbox" id="themeToggle">
+            <span class="theme-slider">
+                <span class="theme-icon">🌙</span>
+                <span class="theme-icon">☀️</span>
+            </span>
+        </label>
+    </div>
+
+    <header>
+        <h1>Practicals Wheel</h1>
+        <p class="subtitle">Swipe or click next to explore the interactive machine learning modules within a dynamic 3D carousel.</p>
+    </header>
+
+    <!-- 3D Wheel/Carousel Layout -->
+    <div class="scene">
+        <div class="carousel" id="carousel">
+            <a href="Prelab/index.html" class="card pre">
+                <div class="card-icon">🚀</div>
+                <div class="card-title">Prelab<div class="card-arrow">→</div></div>
+                <div class="card-desc">Initial setup, environment configuration, and foundational ML concepts.</div>
+            </a>
+            <a href="Practical_1/index.html" class="card">
+                <div class="card-icon">📊</div>
+                <div class="card-title">Practical 01<div class="card-arrow">→</div></div>
+                <div class="card-desc">Data Preprocessing & Exploratory Data Analysis techniques.</div>
+            </a>
+            <a href="Practical_2/index.html" class="card">
+                <div class="card-icon">🧠</div>
+                <div class="card-title">Practical 02<div class="card-arrow">→</div></div>
+                <div class="card-desc">Linear Regression and Predictive Modeling implementations.</div>
+            </a>
+            <a href="Practical_3/index.html" class="card">
+                <div class="card-icon">🌳</div>
+                <div class="card-title">Practical 03<div class="card-arrow">→</div></div>
+                <div class="card-desc">Decision Trees and Random Forests Implementation details.</div>
+            </a>
+            <a href="Practical_04/index.html" class="card">
+                <div class="card-icon">🗂️</div>
+                <div class="card-title">Practical 04<div class="card-arrow">→</div></div>
+                <div class="card-desc">Advanced Clustering Algorithms: K-Means and Hierarchical.</div>
+            </a>
+            <a href="Practical_5/index.html" class="card">
+                <div class="card-icon">🌐</div>
+                <div class="card-title">Practical 05<div class="card-arrow">→</div></div>
+                <div class="card-desc">Support Vector Machines (SVM) for complex Classification tasks.</div>
+            </a>
+            <a href="Practical_6/index.html" class="card">
+                <div class="card-icon">🤖</div>
+                <div class="card-title">Practical 06<div class="card-arrow">→</div></div>
+                <div class="card-desc">Introduction to Deep Neural Networks and Perceptrons.</div>
+            </a>
+            <a href="Practical_7/index.html" class="card">
+                <div class="card-icon">👁️</div>
+                <div class="card-title">Practical 07<div class="card-arrow">→</div></div>
+                <div class="card-desc">Computer Vision: Advanced Image Classification Basics.</div>
+            </a>
+            <a href="Practical_8/index.html" class="card">
+                <div class="card-icon">💬</div>
+                <div class="card-title">Practical 08<div class="card-arrow">→</div></div>
+                <div class="card-desc">State of the art Natural Language Processing (NLP) Techniques.</div>
+            </a>
+            <a href="PostLab/index.html" class="card post">
+                <div class="card-icon">✨</div>
+                <div class="card-title">PostLab<div class="card-arrow">→</div></div>
+                <div class="card-desc">SilentSpeak AI — Advanced Final Implementation Project Showcase.</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Prev / Next Controls -->
+    <div class="controls">
+        <button class="nav-btn" id="prevBtn" title="Previous">←</button>
+        <button class="nav-btn" id="nextBtn" title="Next">→</button>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('change', (e) => {
+            document.documentElement.setAttribute('data-theme', e.target.checked ? 'light' : 'dark');
+        });
+
+        // 3D Carousel Logic
+        const carousel = document.getElementById('carousel');
+        const cards = document.querySelectorAll('.card');
+        const total = cards.length;
+        const theta = 360 / total;
+        // Calculate radius to perfectly fit cards in a circle (Width: 300px + some gap)
+        const radius = Math.round((300 / 2) / Math.tan(Math.PI / total)) + 60;
+
+        let selectedIndex = 0;
+
+        function rotateCarousel() {
+            const angle = selectedIndex * -theta;
+            carousel.style.transform = `translateZ(${-radius}px) rotateY(${angle}deg)`;
+            
+            // Normalize index to 0 -> total-1 bounds
+            const clampIndex = ((selectedIndex % total) + total) % total;
+
+            cards.forEach((card, index) => {
+                // Determine shortest distance around the wheel
+                let diff = Math.abs(clampIndex - index);
+                if (diff > total / 2) {
+                    diff = total - diff;
+                }
+
+                // Apply styles based on distance from center
+                if (diff === 0) {
+                    card.classList.add('active');
+                    card.style.opacity = '1';
+                    card.style.filter = 'brightness(1) blur(0px)';
+                    card.style.transform = `rotateY(${index * theta}deg) translateZ(${radius}px) scale(1.05)`;
+                } else {
+                    card.classList.remove('active');
+                    const opacityStr = Math.max(0.2, 1 - (diff * 0.25));
+                    card.style.opacity = opacityStr.toString();
+                    card.style.filter = `brightness(0.6) blur(${diff * 2}px)`;
+                    card.style.transform = `rotateY(${index * theta}deg) translateZ(${radius}px) scale(1)`;
+                }
+            });
+        }
+
+        // Initialize Carousel
+        cards.forEach((card, i) => {
+            card.style.transform = `rotateY(${i * theta}deg) translateZ(${radius}px)`;
+        });
+        
+        // Wait a small tick so initial transform completes without jump, then set Z
+        setTimeout(() => rotateCarousel(), 50);
+
+        // Buttons
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            selectedIndex--;
+            rotateCarousel();
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            selectedIndex++;
+            rotateCarousel();
+        });
+
+        // Swipe & Drag Gestures
+        let isDragging = false;
+        let startX = 0;
+        let moveX = 0;
+
+        // Mouse Events
+        carousel.addEventListener('mousedown', e => {
+            isDragging = true;
+            startX = e.pageX;
+            // Prevent default drag of 'a' link elements
+            e.preventDefault(); 
+        });
+        
+        window.addEventListener('mouseup', () => { 
+            if(!isDragging) return;
+            isDragging = false;
+            
+            // Snap to next/prev if dragged enough
+            if (moveX > 60) selectedIndex--;
+            else if (moveX < -60) selectedIndex++;
+            
+            moveX = 0;
+            rotateCarousel();
+        });
+        
+        window.addEventListener('mousemove', e => {
+            if(!isDragging) return;
+            moveX = e.pageX - startX;
+            // Immediate feedback drag rotation
+            const dragAngle = (moveX / 300) * theta;
+            const angle = selectedIndex * -theta + dragAngle;
+            carousel.style.transform = `translateZ(${-radius}px) rotateY(${angle}deg)`;
+        });
+
+        // Touch Events for Mobile
+        carousel.addEventListener('touchstart', e => {
+            isDragging = true;
+            startX = e.touches[0].pageX;
+        }, {passive: true});
+        
+        window.addEventListener('touchend', () => { 
+            if(!isDragging) return;
+            isDragging = false;
+            if (moveX > 60) selectedIndex--;
+            else if (moveX < -60) selectedIndex++;
+            moveX = 0;
+            rotateCarousel();
+        });
+        
+        window.addEventListener('touchmove', e => {
+            if(!isDragging) return;
+            moveX = e.touches[0].pageX - startX;
+            const dragAngle = (moveX / 300) * theta;
+            const angle = selectedIndex * -theta + dragAngle;
+            carousel.style.transform = `translateZ(${-radius}px) rotateY(${angle}deg)`;
+        }, {passive: true});
+
+    </script>
 </body>
 </html>
