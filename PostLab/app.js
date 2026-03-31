@@ -144,11 +144,16 @@ const S = {
   lipVote: [],    // [{text, conf}]
   VOTE_WINDOW: 12,
   VOTE_NEEDED: 8,  // votes of same label to confirm
-  // Debounce: don't repeat same detection too fast
-  lastSignEmit: '', lastSignEmitTime: 0,
-  lastLipEmit: '',  lastLipEmitTime: 0,
-  EMIT_COOLDOWN: 1400, // ms
-  EMIT_COOLDOWN: 1400, // ms
+  // Debounce: don't repeat same sign until hand drops between signs
+  lastSignEmit: '',
+  lastSignEmitTime: 0,
+  signHandPresent: false,   // was hand visible last frame?
+  signReadyForNew: true,    // cleared until hand drops after an emit
+  lastLipEmit: '',
+  lastLipEmitTime: 0,
+  lipMouthPresent: false,
+  lipReadyForNew: true,
+  EMIT_COOLDOWN: 1400, // ms – minimum gap even when sign changes
   // Settings
   buildSentence: false,
   soundEnabled: true,
@@ -383,10 +388,8 @@ function renderLoop() {
   if (now - S.fpsTimer >= 1000) {
     S.fps = S.frames; S.frames = 0; S.fpsTimer = now;
     S.fpsSum += S.fps; S.fpsCount++;
-    id('fpsDisplay').textContent = S.fps + ' FPS';
-    id('statFps').textContent = Math.round(S.fpsSum / S.fpsCount);
-    id('statVotes').textContent = document.getElementById('numVotes').value;
-    id('statThreshold').textContent = document.getElementById('minConf').value;
+    const fpsEl = id('fpsDisplay'); if (fpsEl) fpsEl.textContent = S.fps + ' FPS';
+    const sfpsEl = id('statFps'); if (sfpsEl) sfpsEl.textContent = Math.round(S.fpsSum / S.fpsCount);
   }
 
   const v = S.video;
@@ -427,9 +430,17 @@ function renderLoop() {
           signResult = handResults[0];
         }
         S.signConf = signResult ? signResult.confidence : Math.max(0, S.signConf - 4);
+        // Mark hand present → reset 'ready' flag only when hand disappears
+        S.signHandPresent = true;
       } else {
         S.signConf = Math.max(0, S.signConf - 3);
         S.wristXHistory = [];
+        // Hand gone → allow a new sign to be read
+        if (S.signHandPresent) {
+          S.signHandPresent = false;
+          S.signReadyForNew = true;
+          S.signVote = [];
+        }
       }
     } catch (e) { console.warn('Hand detect err', e); }
   }
@@ -449,8 +460,14 @@ function renderLoop() {
         const bs = r.faceBlendshapes?.[0]?.categories || [];
         lipResult = classifyLipShape(bs);
         S.lipConf = lipResult ? lipResult.confidence : Math.max(0, S.lipConf - 4);
+        S.lipMouthPresent = !!lipResult;
       } else {
         S.lipConf = Math.max(0, S.lipConf - 3);
+        if (S.lipMouthPresent) {
+          S.lipMouthPresent = false;
+          S.lipReadyForNew = true;
+          S.lipVote = [];
+        }
       }
     } catch (e) { console.warn('Face detect err', e); }
   }
@@ -769,24 +786,34 @@ function fuseResults(signResult, lipResult) {
     else showPred('—', 'Waiting for input…', '');
   }
 
-  // ── Confirmed via temporal voting + cooldown ──
+  // ── Confirmed via temporal voting ──
+  // Sign: emit only once per distinct hold; require hand to drop before the
+  // same sign is accepted again (S.signReadyForNew guards this).
   if (S.mode !== 'lip') {
     const confirmed = temporalVote(S.signVote, signResult, S.VOTE_WINDOW, S.VOTE_NEEDED);
-    if (confirmed && confirmed.source) {
-      const coolOk = now - S.lastSignEmitTime > S.EMIT_COOLDOWN || confirmed.text !== S.lastSignEmit;
-      if (coolOk) {
-        S.lastSignEmit = confirmed.text; S.lastSignEmitTime = now;
+    if (confirmed) {
+      const isDifferent = confirmed.text !== S.lastSignEmit;
+      const coolOk = now - S.lastSignEmitTime > S.EMIT_COOLDOWN;
+      // Emit only if: it's a NEW sign (different label + cooldown) OR
+      // it's the same sign but the hand previously dropped (signReadyForNew)
+      if ((isDifferent && coolOk) || (S.signReadyForNew && coolOk)) {
+        S.lastSignEmit = confirmed.text;
+        S.lastSignEmitTime = now;
+        S.signReadyForNew = false; // block until hand drops again
         onDetection({ ...confirmed, source: signResult?.source || '✋ Sign Language' });
-        S.signVote = [];
+        S.signVote = []; // flush so the NEXT distinct hold starts fresh
       }
     }
   }
   if (S.mode !== 'sign') {
     const confirmed = temporalVote(S.lipVote, lipResult, S.VOTE_WINDOW, S.VOTE_NEEDED);
-    if (confirmed && confirmed.source) {
-      const coolOk = now - S.lastLipEmitTime > S.EMIT_COOLDOWN || confirmed.text !== S.lastLipEmit;
-      if (coolOk) {
-        S.lastLipEmit = confirmed.text; S.lastLipEmitTime = now;
+    if (confirmed) {
+      const isDifferent = confirmed.text !== S.lastLipEmit;
+      const coolOk = now - S.lastLipEmitTime > S.EMIT_COOLDOWN;
+      if ((isDifferent && coolOk) || (S.lipReadyForNew && coolOk)) {
+        S.lastLipEmit = confirmed.text;
+        S.lastLipEmitTime = now;
+        S.lipReadyForNew = false;
         onDetection({ ...confirmed, source: lipResult?.source || '👄 Lip Reading' });
         S.lipVote = [];
       }
